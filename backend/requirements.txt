@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+
+# LLM Integration (optional — only needed if using AI Enhance)
+langchain-core
+langchain-openai
+langchain-google-genai
+python-dotenv
