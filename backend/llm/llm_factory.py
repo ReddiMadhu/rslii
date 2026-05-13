@@ -82,7 +82,7 @@ def _build_google_chat(*, temperature: float, json_mode: bool) -> Optional[BaseC
         "temperature": temperature,
     }
     if json_mode:
-        kwargs["model_kwargs"] = {"response_mime_type": "application/json"}
+        kwargs["response_mime_type"] = "application/json"
     return ChatGoogleGenerativeAI(**kwargs)
 
 

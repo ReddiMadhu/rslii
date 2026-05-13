@@ -357,9 +357,7 @@ export default function LineageTab({ result }) {
         minZoom={0.3}
         maxZoom={1.5}
         proOptions={{ hideAttribution: true }}
-        nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable={false}
       >
         <Background
           color="var(--border)"
