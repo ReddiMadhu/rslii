@@ -1,5 +1,50 @@
 """Operation detection registry — maps pandas methods to categories."""
 
+from __future__ import annotations
+
+import os.path
+
+# ─── v2: read method → logical format (parse / upload validation) ───
+
+FORMAT_MAP: dict[str, str] = {
+    "read_csv": "csv",
+    "read_excel": "excel",
+    "read_parquet": "parquet",
+    "read_json": "json",
+    "read_html": "html",
+    "read_xml": "xml",
+    "read_sql": "sql",
+    "read_sql_table": "sql",
+    "read_sql_query": "sql",
+    "read_feather": "feather",
+    "read_orc": "orc",
+    "read_stata": "stata",
+    "read_pickle": "pickle",
+    "read_clipboard": "clipboard",
+    "DataFrame": "inline",
+}
+
+# Expected file extensions per format (lowercase, with dot)
+ACCEPTED_EXTENSIONS: dict[str, tuple[str, ...]] = {
+    "csv": (".csv", ".tsv", ".txt"),
+    "excel": (".xlsx", ".xls"),
+    "parquet": (".parquet", ".pq"),
+    "json": (".json",),
+    "html": (".html", ".htm"),
+    "xml": (".xml",),
+    "feather": (".feather",),
+    "orc": (".orc",),
+    "stata": (".dta",),
+    "pickle": (".pkl", ".pickle"),
+    "sql": (),  # external / non-file
+    "clipboard": (),
+    "inline": (),
+}
+
+# Sources that cannot be satisfied with an uploaded file in v2 MVP
+EXTERNAL_READ_METHODS = frozenset({
+    "read_sql", "read_sql_table", "read_sql_query", "read_clipboard",
+})
 
 # ─── Category Definitions ───
 
@@ -59,6 +104,9 @@ def classify_method(method_name: str) -> tuple[str, str]:
     Classify a method name into (category, type).
     Returns (category_key, type_string).
     """
+    # Inline structured source (pd.DataFrame(...)) — no file upload
+    if method_name == "DataFrame":
+        return "source", "inline"
     if method_name in READ_OPS:
         return "source", "read"
     if method_name in WRITE_OPS:
@@ -85,3 +133,18 @@ def classify_method(method_name: str) -> tuple[str, str]:
 def get_category_info(category: str) -> dict:
     """Get display info for a category."""
     return CATEGORIES.get(category, CATEGORIES["unknown"])
+
+
+def validate_upload_extension(format_key: str, filename: str) -> tuple[bool, str]:
+    """
+    Return (ok, error_message). Used by /api/execute (Phase 3) and can be
+    mirrored on the client for Phase 4.
+    """
+    allowed = ACCEPTED_EXTENSIONS.get(format_key)
+    if not allowed:
+        return True, ""
+    ext = os.path.splitext(filename.lower())[1]
+    if ext in allowed:
+        return True, ""
+    expect = ", ".join(allowed) if allowed else format_key
+    return False, f"Expected {format_key} ({expect}), got {ext or 'no extension'}"

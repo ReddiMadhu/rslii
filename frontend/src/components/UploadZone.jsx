@@ -3,7 +3,7 @@ import { useDropzone } from "react-dropzone";
 import { Upload, FileCode, Clipboard, X, Loader2, Sparkles } from "lucide-react";
 import { cn } from "../lib/utils";
 
-export default function UploadZone({ onAnalyze, isLoading, llmAvailable = false }) {
+export default function UploadZone({ onParse, onAnalyze, isLoading, llmAvailable = false, hideLlm = false }) {
   const [mode, setMode] = useState("upload"); // "upload" | "paste"
   const [code, setCode] = useState("");
   const [fileName, setFileName] = useState(null);
@@ -34,7 +34,12 @@ export default function UploadZone({ onAnalyze, isLoading, llmAvailable = false 
 
   const handleAnalyze = () => {
     if (!code.trim()) return;
-    onAnalyze({ code: code.trim(), filename: fileName, enableLlm });
+    const payload = { code: code.trim(), filename: fileName, enableLlm: hideLlm ? false : enableLlm };
+    if (onParse) {
+      onParse({ code: payload.code, filename: payload.filename });
+    } else if (onAnalyze) {
+      onAnalyze(payload);
+    }
   };
 
   const handleClear = () => {
@@ -230,7 +235,7 @@ export default function UploadZone({ onAnalyze, isLoading, llmAvailable = false 
 
         {/* LLM toggle + Analyze button */}
         <div className="flex items-center gap-3">
-          {llmAvailable && (
+          {llmAvailable && !hideLlm && (
             <button
               onClick={() => setEnableLlm((v) => !v)}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"

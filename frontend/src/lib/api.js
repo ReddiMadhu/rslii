@@ -30,3 +30,22 @@ export async function analyzeCode({ code, filename, enableLlm = false }) {
   }
   return res.json();
 }
+
+export async function parseCode({ code, filename }) {
+  const res = await fetch(`${API_BASE}/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, filename }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    let message = "Parse failed";
+    if (body?.detail) message = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export function getDownloadUrl(sessionId, filename) {
+  return `${API_BASE}/download/${encodeURIComponent(sessionId)}/${encodeURIComponent(filename)}`;
+}

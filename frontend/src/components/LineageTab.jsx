@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -37,9 +37,24 @@ const iconMap = {
 function ETLNodeComponent({ data }) {
   const expandedNodes = useAnalysisStore((state) => state.expandedNodes);
   const toggleNodeExpanded = useAnalysisStore((state) => state.toggleNodeExpanded);
+  const setSelectedDetailNode = useAnalysisStore((state) => state.setSelectedDetailNode);
   const isExpanded = expandedNodes.has(data.nodeId);
   const IconComp = iconMap[data.icon] || HelpCircle;
 
+  const exec = data.execStatus;
+  const borderColor =
+    exec === "failed"
+      ? "#ef4444"
+      : exec === "completed"
+      ? "#22c55e"
+      : exec === "executing"
+      ? "#fb923c"
+      : exec === "not_reached"
+      ? "var(--text-muted)"
+      : isExpanded
+      ? data.color
+      : "var(--border)";
+  const rt = data.runtime;
   return (
     <div style={{ minWidth: 200 }}>
       <Handle type="target" position={Position.Left} style={{ background: data.color, width: 8, height: 8, border: "2px solid var(--bg-primary)" }} />
@@ -49,9 +64,10 @@ function ETLNodeComponent({ data }) {
         className="nodrag nopan rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-1 group"
         style={{
           background: "var(--bg-card)",
-          border: `1px solid ${isExpanded ? data.color : 'var(--border)'}`,
+          border: `2px solid ${borderColor}`,
           boxShadow: isExpanded ? `0 0 20px ${data.color}20` : "0 4px 12px rgba(0,0,0,0.1)",
           maxWidth: 280,
+          opacity: exec === "not_reached" ? 0.65 : 1,
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -173,6 +189,31 @@ function ETLNodeComponent({ data }) {
                 </div>
               </div>
             )}
+            {rt && typeof rt.rows_out === "number" && (
+              <div className="text-[10px] space-y-1" style={{ color: "var(--text-secondary)" }}>
+                <div>
+                  Rows: {rt.rows_in ?? "—"} → {rt.rows_out}
+                </div>
+                <div>
+                  Cols: {rt.cols_in ?? "—"} → {rt.cols_out}
+                </div>
+                {rt.duration_ms != null && <div>Duration: {rt.duration_ms} ms</div>}
+              </div>
+            )}
+            {rt?.error && (
+              <div className="text-[10px] text-red-400 break-all">{rt.error}</div>
+            )}
+            <button
+              type="button"
+              className="nodrag text-[10px] font-semibold mt-1 px-2 py-1 rounded-lg"
+              style={{ background: "var(--bg-secondary)", color: "var(--primary)" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedDetailNode(data.nodeId);
+              }}
+            >
+              View Details
+            </button>
           </div>
         )}
       </div>
@@ -269,8 +310,14 @@ function layoutNodes(apiNodes, apiEdges) {
 
 // ─── Main Component ───
 export default function LineageTab({ result }) {
+  const selectedDetailNode = useAnalysisStore((s) => s.selectedDetailNode);
   const apiNodes = result?.nodes || [];
   const apiEdges = result?.edges || [];
+
+  const statusById = useMemo(
+    () => Object.fromEntries(apiNodes.map((n) => [n.id, n.status])),
+    [apiNodes]
+  );
 
   const positions = useMemo(
     () => layoutNodes(apiNodes, apiEdges),
@@ -295,6 +342,8 @@ export default function LineageTab({ result }) {
           isLoop: n.is_loop,
           schemaRefs: n.schema_refs,
           category: n.category,
+          execStatus: n.status,
+          runtime: n.runtime,
         },
       })),
     [apiNodes, positions]
@@ -302,46 +351,61 @@ export default function LineageTab({ result }) {
 
   const flowEdges = useMemo(
     () =>
-      apiEdges.map((e, i) => ({
-        id: `edge_${i}`,
-        source: e.source,
-        target: e.target,
-        type: "smoothstep",
-        animated: false,
-        label: e.variable || "",
-        labelStyle: {
-          fill: "var(--text-muted)",
-          fontSize: 10,
-          fontWeight: 500,
-        },
-        labelBgStyle: {
-          fill: "var(--bg-card)",
-          fillOpacity: 0.9,
-        },
-        labelBgPadding: [4, 2],
-        style: {
-          stroke: "var(--text-muted)",
-          strokeWidth: 1.5,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 14,
-          height: 14,
-          color: "var(--text-muted)",
-        },
-      })),
-    [apiEdges]
+      apiEdges.map((e, i) => {
+        const src = statusById[e.source];
+        const tgt = statusById[e.target];
+        const edgeComplete = src === "completed" && tgt === "completed";
+        const stroke = edgeComplete ? "var(--primary)" : "var(--text-muted)";
+        const strokeWidth = edgeComplete ? 2 : 1.5;
+        return {
+          id: `edge_${i}`,
+          source: e.source,
+          target: e.target,
+          type: "smoothstep",
+          animated: false,
+          label: e.variable || "",
+          labelStyle: {
+            fill: "var(--text-muted)",
+            fontSize: 10,
+            fontWeight: 500,
+          },
+          labelBgStyle: {
+            fill: "var(--bg-card)",
+            fillOpacity: 0.9,
+          },
+          labelBgPadding: [4, 2],
+          style: {
+            stroke,
+            strokeWidth,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 14,
+            height: 14,
+            color: stroke,
+          },
+        };
+      }),
+    [apiEdges, statusById]
   );
 
-  const [nodes, , onNodesChange] = useNodesState(flowNodes);
-  const [edges, , onEdgesChange] = useEdgesState(flowEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges);
+
+  useEffect(() => {
+    setNodes(flowNodes);
+  }, [flowNodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(flowEdges);
+  }, [flowEdges, setEdges]);
 
   return (
     <div
       className="w-full rounded-xl overflow-hidden"
       style={{
-        height: "calc(100vh - 200px)",
-        minHeight: 500,
+        height: selectedDetailNode ? "min(52vh, 480px)" : "calc(100vh - 200px)",
+        minHeight: selectedDetailNode ? 320 : 500,
         background: "var(--bg-card)",
         border: "1px solid var(--border)",
       }}

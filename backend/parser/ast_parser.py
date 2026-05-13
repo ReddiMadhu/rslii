@@ -1,12 +1,19 @@
 """Core AST parser — walks Python AST to extract ETL nodes and edges."""
 
 import ast
+import os
 import textwrap
 from typing import Optional
 
 from .operations import (
-    classify_method, get_category_info, READ_OPS, WRITE_OPS,
-    SUBSCRIPT_FILTER_ATTRS, STR_ACCESSOR,
+    EXTERNAL_READ_METHODS,
+    FORMAT_MAP,
+    classify_method,
+    get_category_info,
+    READ_OPS,
+    WRITE_OPS,
+    SUBSCRIPT_FILTER_ATTRS,
+    STR_ACCESSOR,
 )
 
 
@@ -29,6 +36,8 @@ class ETLNode:
         self.schema_refs: list[str] = []
         self.description = ""
         self.description_source = "template"
+        # Resolved path / connection string for source nodes (v2 file mapping)
+        self.source_connection: str = ""
 
     def to_dict(self) -> dict:
         info = get_category_info(self.category)
@@ -82,9 +91,12 @@ class ASTParser:
         self._var_map: dict[str, str] = {}
         # Function definitions for call resolution
         self._func_defs: dict[str, ast.FunctionDef] = {}
+        # v2 execution: ordered instrumentation points (same tree as self.tree)
+        self.injection_steps: list[dict] = []
 
     def parse(self) -> dict:
         """Main entry point — parse the code and return the full result."""
+        self.injection_steps = []
         # Step 1: Collect function definitions
         self._collect_function_defs()
 
@@ -107,6 +119,66 @@ class ASTParser:
             "edges": [e.to_dict() for e in self.edges],
             "warnings": self.warnings,
         }
+
+    def extract_sources(self) -> list[dict]:
+        """
+        Structured file-mapping slots for v2 (call after parse()).
+        One entry per AST source node, in discovery order.
+        """
+        sources: list[dict] = []
+        for node in self.nodes:
+            if node.category != "source":
+                continue
+            fmt = FORMAT_MAP.get(node.method, "unknown")
+            path = node.source_connection or None
+            if path == "unknown":
+                path = None
+            filename = self._source_filename_from_path(path, node.method)
+            requires_upload = True
+            skip_reason: Optional[str] = None
+            if node.method == "DataFrame":
+                requires_upload = False
+            elif node.method in EXTERNAL_READ_METHODS:
+                requires_upload = False
+                skip_reason = "External source"
+            sources.append({
+                "id": f"source_{len(sources) + 1}",
+                "method": node.method,
+                "format": fmt,
+                "path": path,
+                "filename": filename,
+                "line": node.line_number,
+                "node_id": node.id,
+                "requires_upload": requires_upload,
+                "skip_reason": skip_reason,
+            })
+        return sources
+
+    def build_parse_skeleton(self) -> dict:
+        """Minimal DAG for /api/parse (after parse())."""
+        sk_nodes = []
+        for n in self.nodes:
+            info = get_category_info(n.category)
+            sk_nodes.append({
+                "id": n.id,
+                "label": n.label,
+                "category": n.category,
+                "color": info["color"],
+                "icon": info["icon"],
+                "line_number": n.line_number,
+            })
+        return {"nodes": sk_nodes, "edges": [e.to_dict() for e in self.edges]}
+
+    @staticmethod
+    def _source_filename_from_path(path: Optional[str], method: str) -> Optional[str]:
+        if not path:
+            return None
+        if path.startswith("env(") or path.startswith("config("):
+            return path
+        if method in EXTERNAL_READ_METHODS:
+            return None
+        base = os.path.basename(path.strip().strip('"').strip("'"))
+        return base or None
 
     # ─── Entry Point Resolution ───
 
@@ -177,25 +249,39 @@ class ASTParser:
                 self._add_edge(self._var_map[var_name], node.id, var_name)
             if var_name:
                 self._var_map[var_name] = node.id
+            self.injection_steps.append({
+                "node_id": node.id,
+                "method": "column_assign",
+                "category": "column_op",
+                "parent_stmt": stmt,
+                "call_node": None,
+                "snapshot_var": var_name or "",
+            })
             return
 
         # Process the value expression — may produce multiple nodes from chains
-        self._process_expression(value, target_var, in_loop)
+        self._process_expression(value, target_var, in_loop, parent_stmt=stmt)
 
     def _handle_expr_call(self, stmt: ast.Expr, in_loop: bool):
         """Handle bare expression calls like `df.to_csv(...)`."""
-        self._process_expression(stmt.value, None, in_loop)
+        self._process_expression(stmt.value, None, in_loop, parent_stmt=stmt)
 
     # ─── Expression Processing ───
 
-    def _process_expression(self, expr, target_var: Optional[str], in_loop: bool):
+    def _process_expression(
+        self,
+        expr,
+        target_var: Optional[str],
+        in_loop: bool,
+        parent_stmt: Optional[ast.stmt] = None,
+    ):
         """Process an expression, handling chains, calls, and subscripts."""
         # Unpack chained method calls into a flat list
         chain = self._unpack_chain(expr)
 
         if not chain:
             # Single non-chain expression — try to classify
-            self._process_single_expr(expr, target_var, in_loop)
+            self._process_single_expr(expr, target_var, in_loop, parent_stmt=parent_stmt)
             return
 
         prev_node_id = None
@@ -210,6 +296,11 @@ class ASTParser:
             code_str = self._get_source_from_node(full_expr)
 
             var_out = target_var if is_last else f"_chain_{self._node_counter}"
+            if target_var is None and is_last and category == "target":
+                if isinstance(call_node.func, ast.Attribute):
+                    receiver = self._get_var_name(call_node.func.value)
+                    if receiver:
+                        var_out = receiver
             node = self._create_node(
                 category=category, op_type=op_type, method=method_name,
                 label=label, code=code_str, line=full_expr.lineno,
@@ -218,6 +309,19 @@ class ASTParser:
 
             # Extract schema refs
             node.schema_refs = self._extract_schema_refs(call_node)
+
+            if category == "source":
+                node.source_connection = self._extract_connection(call_node)
+
+            if parent_stmt is not None:
+                self.injection_steps.append({
+                    "node_id": node.id,
+                    "method": method_name,
+                    "category": category,
+                    "parent_stmt": parent_stmt,
+                    "call_node": call_node,
+                    "snapshot_var": var_out or "",
+                })
 
             # For merge/join operations, connect extra inputs (the "right" DataFrame)
             if category == "join":
@@ -239,7 +343,13 @@ class ASTParser:
         if target_var and prev_node_id:
             self._var_map[target_var] = prev_node_id
 
-    def _process_single_expr(self, expr, target_var: Optional[str], in_loop: bool):
+    def _process_single_expr(
+        self,
+        expr,
+        target_var: Optional[str],
+        in_loop: bool,
+        parent_stmt: Optional[ast.stmt] = None,
+    ):
         """Process a single (non-chain) expression."""
         # Boolean indexing: df[df['col'] > value]
         if isinstance(expr, ast.Subscript):
@@ -256,6 +366,15 @@ class ASTParser:
                 self._add_edge(self._var_map[var_name], node.id, var_name)
             if target_var:
                 self._var_map[target_var] = node.id
+            if parent_stmt is not None:
+                self.injection_steps.append({
+                    "node_id": node.id,
+                    "method": "boolean_index",
+                    "category": "filter",
+                    "parent_stmt": parent_stmt,
+                    "call_node": None,
+                    "snapshot_var": target_var or "",
+                })
             return
 
         # Function call (user-defined or unknown)
@@ -276,6 +395,17 @@ class ASTParser:
                         label=label, code=code_str, line=expr.lineno,
                         variable_out=target_var or "", in_loop=in_loop,
                     )
+                    if category == "source":
+                        node.source_connection = self._extract_connection(expr)
+                    if parent_stmt is not None:
+                        self.injection_steps.append({
+                            "node_id": node.id,
+                            "method": func_name,
+                            "category": category,
+                            "parent_stmt": parent_stmt,
+                            "call_node": expr,
+                            "snapshot_var": target_var or "",
+                        })
                     # For concat/merge, try to connect input variables
                     self._connect_merge_inputs(expr, node)
                     if target_var:
@@ -383,6 +513,8 @@ class ASTParser:
 
     def _build_label(self, method: str, category: str, call_node: ast.Call) -> str:
         """Build a human-readable label for a node."""
+        if method == "DataFrame":
+            return "Create DataFrame (inline)"
         if category == "source":
             conn = self._extract_connection(call_node)
             fmt = method.replace("read_", "").upper()
@@ -562,7 +694,8 @@ class ASTParser:
 
         for n in self.nodes:
             if n.category == "source":
-                sources.append({"name": n.label, "format": n.method.replace("read_", ""), "line": n.line_number})
+                fmt = FORMAT_MAP.get(n.method, n.method.replace("read_", "") or "unknown")
+                sources.append({"name": n.label, "format": fmt, "line": n.line_number})
             elif n.category == "target":
                 targets.append({"name": n.label, "format": n.method.replace("to_", ""), "line": n.line_number})
             elif n.category == "filter":

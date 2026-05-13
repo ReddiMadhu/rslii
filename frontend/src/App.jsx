@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { healthCheck, analyzeCode } from "./lib/api";
-import { Sun, Moon, Zap, RotateCcw, LayoutDashboard, GitBranch } from "lucide-react";
-import useAnalysisStore from "./store/useAnalysisStore";
+import { healthCheck, parseCode } from "./lib/api";
+import { Sun, Moon, Zap, RotateCcw, LayoutDashboard, GitBranch, RefreshCw } from "lucide-react";
+import useAnalysisStore, { APP_STATES } from "./store/useAnalysisStore";
 import UploadZone from "./components/UploadZone";
+import SourceMapper from "./components/SourceMapper";
 import SummaryTab from "./components/SummaryTab";
 import LineageTab from "./components/LineageTab";
+import NodeDetail from "./components/NodeDetail";
+import ExecutionStream from "./components/ExecutionStream";
 import "./index.css";
 
 function ThemeToggle() {
@@ -63,10 +66,53 @@ function TabButton({ active, icon: Icon, label, onClick }) {
 function App() {
   const [backendStatus, setBackendStatus] = useState("checking");
   const [llmAvailable, setLlmAvailable] = useState(false);
-  const {
-    result, isLoading, error, activeTab,
-    setResult, setLoading, setError, setActiveTab, reset,
-  } = useAnalysisStore();
+  const appState = useAnalysisStore((s) => s.appState);
+  const parseResult = useAnalysisStore((s) => s.parseResult);
+  const executionProgress = useAnalysisStore((s) => s.executionProgress);
+  const liveExecSummary = useAnalysisStore((s) => s.liveExecSummary);
+  const result = useAnalysisStore((s) => s.result);
+  const isLoading = useAnalysisStore((s) => s.isLoading);
+  const error = useAnalysisStore((s) => s.error);
+  const activeTab = useAnalysisStore((s) => s.activeTab);
+  const selectedDetailNode = useAnalysisStore((s) => s.selectedDetailNode);
+  const setParsed = useAnalysisStore((s) => s.setParsed);
+  const setLoading = useAnalysisStore((s) => s.setLoading);
+  const setError = useAnalysisStore((s) => s.setError);
+  const setActiveTab = useAnalysisStore((s) => s.setActiveTab);
+  const setAppState = useAnalysisStore((s) => s.setAppState);
+  const reset = useAnalysisStore((s) => s.reset);
+
+  const displayResult = useMemo(() => {
+    if (appState === APP_STATES.EXECUTING && parseResult?.nodes) {
+      const nodes = parseResult.nodes.map((n) => {
+        const p = executionProgress[n.id];
+        let status = n.status;
+        let runtime = n.runtime;
+        if (p?.status === "executing") status = "executing";
+        if (p?.status === "completed") {
+          status = "completed";
+          runtime = { ...p.metrics };
+        }
+        if (p?.status === "failed") {
+          status = "failed";
+          runtime = { ...(runtime || {}), error: p.error };
+        }
+        return { ...n, status, runtime };
+      });
+      return {
+        nodes,
+        edges: parseResult.edges,
+        summary: {
+          ...parseResult.summary,
+          ...(liveExecSummary || {}),
+        },
+        warnings: parseResult.warnings || [],
+      };
+    }
+    return result;
+  }, [appState, parseResult, executionProgress, liveExecSummary, result]);
+
+  const showTabs = result || appState === APP_STATES.EXECUTING;
 
   useEffect(() => {
     healthCheck()
@@ -80,15 +126,13 @@ function App() {
       });
   }, []);
 
-  const handleAnalyze = async ({ code, filename, enableLlm = false }) => {
+  const handleParse = async ({ code, filename }) => {
     setLoading(true);
     try {
-      const data = await analyzeCode({ code, filename, enableLlm });
-      setResult(data);
-      const lines = data?.summary?.total_lines ?? "?";
-      const nodes = data?.summary?.total_nodes ?? 0;
-      const llmBadge = data?.llm_used ? " ✨ AI Enhanced" : "";
-      toast.success(`Analysis complete — ${lines} lines, ${nodes} nodes${llmBadge}`);
+      const data = await parseCode({ code, filename });
+      setParsed(data, code, filename);
+      const need = (data.sources || []).filter((s) => s.requires_upload).length;
+      toast.success(`Parsed — ${need} file slot(s) to map`);
     } catch (err) {
       setError(err.message);
       toast.error(err.message);
@@ -100,7 +144,6 @@ function App() {
       className="min-h-screen flex flex-col"
       style={{ background: "var(--bg-primary)" }}
     >
-      {/* Header */}
       <header
         className="flex items-center justify-between px-6 py-3 sticky top-0 z-50"
         style={{
@@ -135,8 +178,7 @@ function App() {
             ETL Analyzer
           </span>
 
-          {/* Tabs — show only when results exist */}
-          {result && (
+          {showTabs && (
             <div
               className="flex gap-1 p-1 rounded-lg ml-4"
               style={{ background: "var(--bg-secondary)" }}
@@ -158,7 +200,21 @@ function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          {result && (
+          {appState === APP_STATES.RESULTS && (
+            <button
+              onClick={() => setAppState(APP_STATES.SOURCE_MAPPING)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
+              style={{
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <RefreshCw size={13} className="group-hover:text-[var(--primary)] transition-colors" />
+              <span className="group-hover:text-[var(--text-primary)] transition-colors">Re-execute</span>
+            </button>
+          )}
+          {(result || parseResult) && (
             <button
               onClick={reset}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
@@ -202,9 +258,7 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col px-6 py-6">
-        {/* Error Banner */}
         {error && (
           <div
             className="w-full max-w-5xl mx-auto mb-6 px-4 py-3 rounded-xl text-sm font-medium animate-fade-in"
@@ -218,18 +272,29 @@ function App() {
           </div>
         )}
 
-        {/* Upload zone — centered when no results */}
-        {!result ? (
+        {appState === APP_STATES.UPLOAD_SCRIPT && (
           <div className="flex-1 flex items-center justify-center">
-            <UploadZone onAnalyze={handleAnalyze} isLoading={isLoading} llmAvailable={llmAvailable} />
+            <UploadZone onParse={handleParse} isLoading={isLoading} llmAvailable={llmAvailable} hideLlm />
           </div>
-        ) : (
-          /* Result tabs */
-          <div className="animate-fade-in">
+        )}
+
+        {appState === APP_STATES.SOURCE_MAPPING && (
+          <div className="flex-1 flex items-center justify-center">
+            <SourceMapper llmAvailable={llmAvailable} />
+          </div>
+        )}
+
+        {showTabs && displayResult && (
+          <div className="animate-fade-in w-full max-w-6xl mx-auto">
+            {appState === APP_STATES.EXECUTING && <ExecutionStream />}
             {activeTab === "summary" ? (
-              <SummaryTab result={result} />
+              <SummaryTab result={displayResult} />
             ) : (
-              <LineageTab result={result} />
+              <LineageTab result={displayResult} />
+            )}
+            {selectedDetailNode &&
+              (appState === APP_STATES.RESULTS || appState === APP_STATES.EXECUTING) && (
+              <NodeDetail result={displayResult} />
             )}
           </div>
         )}

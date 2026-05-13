@@ -20,6 +20,12 @@
   --node-apply: #ec4899;       /* Pink */
   --node-unknown: #6b7280;     /* Gray */
 
+  /* Runtime execution status (lineage / banners) */
+  --exec-executing: #fb923c;
+  --exec-completed: #22c55e;
+  --exec-failed: #ef4444;
+  --exec-not-reached: #6b7280;
+
   /* Dark theme (default) - Lethal Contrast */
   --bg-primary: #050508;
   --bg-secondary: #0a0a0f;

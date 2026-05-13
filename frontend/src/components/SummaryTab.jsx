@@ -1,7 +1,7 @@
 import {
   Database, HardDrive, Filter, GitMerge, BarChart2, Shuffle,
   Sparkles, Columns, ArrowUpDown, Zap, AlertTriangle, FileCode,
-  Layers, Code,
+  Layers, Code, Download,
 } from "lucide-react";
 
 const iconMap = {
@@ -148,6 +148,25 @@ export default function SummaryTab({ result }) {
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6">
+      {summary.total_duration_ms != null && (
+        <div
+          className="px-4 py-3 rounded-2xl text-sm font-medium flex flex-wrap gap-4"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <span>
+            Status: <strong>{summary.status || "completed"}</strong>
+          </span>
+          <span>Duration: {summary.total_duration_ms} ms</span>
+          <span>
+            Nodes: {summary.nodes_completed ?? 0}/{summary.total_nodes ?? 0} completed
+          </span>
+        </div>
+      )}
+
       {/* Row 1: Sources & Targets */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SourceTargetCard
@@ -172,6 +191,34 @@ export default function SummaryTab({ result }) {
           <MetricCard key={card.label} {...card} delay={100 + i * 40} />
         ))}
       </div>
+
+      {result?.output_files?.length > 0 && (
+        <div
+          className="p-5 rounded-2xl"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          <div className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+            <Download size={16} style={{ color: "var(--primary)" }} />
+            Output downloads
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {result.output_files.map((o) => (
+              <a
+                key={o.name}
+                href={o.download_url}
+                className="text-xs font-semibold px-3 py-2 rounded-xl"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border)",
+                  color: "var(--primary)",
+                }}
+              >
+                {o.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Row 3: Script Metadata */}
       <div
