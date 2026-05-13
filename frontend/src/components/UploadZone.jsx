@@ -59,29 +59,35 @@ export default function UploadZone({ onAnalyze, isLoading, llmAvailable = false 
         <button
           onClick={() => setMode("upload")}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 relative overflow-hidden",
           )}
           style={{
             background: mode === "upload" ? "var(--bg-card)" : "transparent",
             color: mode === "upload" ? "var(--text-primary)" : "var(--text-muted)",
-            boxShadow: mode === "upload" ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
+            boxShadow: mode === "upload" ? "0 4px 12px rgba(0,0,0,0.15)" : "none",
           }}
         >
-          <Upload size={15} />
+          {mode === "upload" && (
+            <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)] to-transparent opacity-10" />
+          )}
+          <Upload size={15} className={mode === "upload" ? "text-[var(--primary)]" : ""} />
           Upload
         </button>
         <button
           onClick={() => setMode("paste")}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 relative overflow-hidden",
           )}
           style={{
             background: mode === "paste" ? "var(--bg-card)" : "transparent",
             color: mode === "paste" ? "var(--text-primary)" : "var(--text-muted)",
-            boxShadow: mode === "paste" ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
+            boxShadow: mode === "paste" ? "0 4px 12px rgba(0,0,0,0.15)" : "none",
           }}
         >
-          <Clipboard size={15} />
+          {mode === "paste" && (
+            <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)] to-transparent opacity-10" />
+          )}
+          <Clipboard size={15} className={mode === "paste" ? "text-[var(--primary)]" : ""} />
           Paste
         </button>
       </div>
@@ -91,8 +97,8 @@ export default function UploadZone({ onAnalyze, isLoading, llmAvailable = false 
         <div
           {...getRootProps()}
           className={cn(
-            "relative flex flex-col items-center justify-center gap-4 p-12 rounded-2xl cursor-pointer transition-all duration-300",
-            isDragActive && "scale-[1.01]"
+            "relative flex flex-col items-center justify-center gap-4 p-12 rounded-3xl cursor-pointer transition-all duration-500 overflow-hidden group",
+            isDragActive ? "scale-[1.02]" : "hover:scale-[1.01]"
           )}
           style={{
             background: "var(--bg-glass)",
@@ -101,10 +107,12 @@ export default function UploadZone({ onAnalyze, isLoading, llmAvailable = false 
               ? "2px dashed var(--primary)"
               : "2px dashed var(--border)",
             boxShadow: isDragActive
-              ? "0 0 40px rgba(251, 78, 11, 0.1)"
+              ? "0 0 50px rgba(251, 78, 11, 0.15)"
               : "none",
           }}
         >
+          {/* Subtle pulse background on hover */}
+          <div className="absolute inset-0 bg-[var(--primary)] opacity-0 group-hover:opacity-5 transition-opacity duration-500" />
           <input {...getInputProps()} />
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center transition-transform duration-300"
@@ -243,24 +251,23 @@ export default function UploadZone({ onAnalyze, isLoading, llmAvailable = false 
           onClick={handleAnalyze}
           disabled={!canAnalyze || lineCount > 2000}
           className={cn(
-            "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200",
-            canAnalyze && lineCount <= 2000 && "hover:scale-[1.02] hover:shadow-lg",
+            "relative flex items-center gap-2 px-8 py-3 rounded-2xl text-sm font-bold text-white transition-all duration-300 overflow-hidden",
+            canAnalyze && lineCount <= 2000 ? "hover:scale-105 hover:shadow-[0_0_30px_rgba(251,78,11,0.4)]" : ""
           )}
           style={{
             background:
               canAnalyze && lineCount <= 2000
-                ? "linear-gradient(135deg, var(--primary), var(--primary-light))"
+                ? "linear-gradient(135deg, var(--primary), var(--primary-dark))"
                 : "var(--bg-card)",
             color: canAnalyze && lineCount <= 2000 ? "white" : "var(--text-muted)",
-            border: "1px solid transparent",
+            border: canAnalyze && lineCount <= 2000 ? "none" : "1px solid var(--border)",
             opacity: canAnalyze && lineCount <= 2000 ? 1 : 0.5,
             cursor: canAnalyze && lineCount <= 2000 ? "pointer" : "not-allowed",
-            boxShadow:
-              canAnalyze && lineCount <= 2000
-                ? "0 4px 20px rgba(251, 78, 11, 0.3)"
-                : "none",
           }}
         >
+          {canAnalyze && lineCount <= 2000 && (
+            <div className="absolute inset-0 bg-white opacity-0 hover:opacity-20 transition-opacity duration-300" />
+          )}
           {isLoading ? (
             <>
               <Loader2 size={16} className="animate-spin" />

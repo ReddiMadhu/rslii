@@ -21,7 +21,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-      className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
+      className="relative p-2 rounded-xl transition-all duration-300 hover:scale-105 group overflow-hidden"
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border)",
@@ -29,7 +29,12 @@ function ThemeToggle() {
       }}
       aria-label="Toggle theme"
     >
-      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+      <div className="absolute inset-0 bg-gradient-to-tr from-[var(--primary)] to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
+      {theme === "dark" ? (
+        <Sun size={18} className="group-hover:text-[var(--primary)] transition-colors" />
+      ) : (
+        <Moon size={18} className="group-hover:text-[var(--primary)] transition-colors" />
+      )}
     </button>
   );
 }
@@ -38,15 +43,18 @@ function TabButton({ active, icon: Icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+      className="relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 overflow-hidden"
       style={{
         background: active ? "var(--bg-card)" : "transparent",
-        color: active ? "var(--text-primary)" : "var(--text-muted)",
-        boxShadow: active ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
+        color: active ? "var(--primary)" : "var(--text-muted)",
+        boxShadow: active ? "0 4px 12px rgba(0,0,0,0.15)" : "none",
         border: active ? "1px solid var(--border)" : "1px solid transparent",
       }}
     >
-      <Icon size={15} />
+      {active && (
+        <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--primary)" }} />
+      )}
+      <Icon size={15} className={active ? "animate-pulse" : ""} />
       {label}
     </button>
   );
@@ -103,12 +111,12 @@ function App() {
       >
         <div className="flex items-center gap-3">
           <div
-            className="flex items-center justify-center w-8 h-8 rounded-lg"
+            className="flex items-center justify-center w-9 h-9 rounded-xl shadow-[0_0_20px_rgba(251,78,11,0.3)]"
             style={{
-              background: "linear-gradient(135deg, var(--primary), var(--primary-light))",
+              background: "linear-gradient(135deg, var(--primary), var(--primary-dark))",
             }}
           >
-            <Zap size={16} color="white" />
+            <Zap size={18} color="white" />
           </div>
           <h1
             className="text-lg font-bold tracking-tight"
@@ -153,15 +161,15 @@ function App() {
           {result && (
             <button
               onClick={reset}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
               style={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border)",
                 color: "var(--text-secondary)",
               }}
             >
-              <RotateCcw size={13} />
-              New Analysis
+              <RotateCcw size={13} className="group-hover:text-[var(--primary)] transition-colors" />
+              <span className="group-hover:text-[var(--text-primary)] transition-colors">New Analysis</span>
             </button>
           )}
 

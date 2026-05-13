@@ -21,13 +21,15 @@ const iconMap = {
 function MetricCard({ icon: Icon, label, value, color, delay = 0 }) {
   return (
     <div
-      className="flex items-center gap-3 p-4 rounded-xl transition-all duration-200 hover:scale-[1.02]"
+      className="flex items-center gap-3 p-4 rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 group relative overflow-hidden"
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border)",
         animation: `fadeIn 0.4s ease-out ${delay}ms both`,
       }}
     >
+      {/* Glow border effect on hover */}
+      <div className="absolute inset-0 border-2 border-transparent group-hover:border-[var(--primary)] rounded-2xl opacity-0 group-hover:opacity-50 transition-all duration-300 pointer-events-none" />
       <div
         className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
         style={{ background: `${color}15`, color }}
@@ -55,7 +57,7 @@ function MetricCard({ icon: Icon, label, value, color, delay = 0 }) {
 function SourceTargetCard({ title, icon: Icon, items, color, delay = 0 }) {
   return (
     <div
-      className="p-5 rounded-xl"
+      className="p-5 rounded-2xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(251,78,11,0.05)] group"
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border)",
@@ -89,7 +91,7 @@ function SourceTargetCard({ title, icon: Icon, items, color, delay = 0 }) {
           {items.map((item, i) => (
             <div
               key={i}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl transition-colors duration-200"
               style={{
                 background: "var(--bg-secondary)",
                 border: "1px solid var(--border)",
@@ -173,10 +175,11 @@ export default function SummaryTab({ result }) {
 
       {/* Row 3: Script Metadata */}
       <div
-        className="flex items-center justify-between px-5 py-3.5 rounded-xl"
+        className="flex items-center justify-between px-6 py-4 rounded-2xl"
         style={{
           background: "var(--bg-card)",
           border: "1px solid var(--border)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
           animation: "fadeIn 0.4s ease-out 450ms both",
         }}
       >

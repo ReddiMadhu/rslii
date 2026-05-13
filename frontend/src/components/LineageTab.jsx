@@ -35,7 +35,8 @@ const iconMap = {
 
 // ─── Custom Node Component ───
 function ETLNodeComponent({ data }) {
-  const { expandedNodes, toggleNodeExpanded } = useAnalysisStore();
+  const expandedNodes = useAnalysisStore((state) => state.expandedNodes);
+  const toggleNodeExpanded = useAnalysisStore((state) => state.toggleNodeExpanded);
   const isExpanded = expandedNodes.has(data.nodeId);
   const IconComp = iconMap[data.icon] || HelpCircle;
 
@@ -45,16 +46,24 @@ function ETLNodeComponent({ data }) {
 
       {/* Node body */}
       <div
-        className="rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
+        className="nodrag nopan rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-1 group"
         style={{
           background: "var(--bg-card)",
-          border: `2px solid ${data.color}40`,
-          boxShadow: `0 0 20px ${data.color}10`,
+          border: `1px solid ${isExpanded ? data.color : 'var(--border)'}`,
+          boxShadow: isExpanded ? `0 0 20px ${data.color}20` : "0 4px 12px rgba(0,0,0,0.1)",
           maxWidth: 280,
         }}
-        onClick={() => toggleNodeExpanded(data.nodeId)}
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleNodeExpanded(data.nodeId);
+        }}
       >
-        <div className="flex items-center gap-2.5 px-3 py-2.5">
+        <div className="flex items-center gap-2.5 px-3 py-2.5 relative overflow-hidden rounded-t-xl">
+          {/* Subtle gradient background for the header */}
+          <div 
+            className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity" 
+            style={{ background: `linear-gradient(90deg, ${data.color}, transparent)` }}
+          />
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
             style={{ background: `${data.color}20`, color: data.color }}
@@ -127,16 +136,14 @@ function ETLNodeComponent({ data }) {
               <div className="text-[10px] font-semibold mb-1" style={{ color: data.color }}>
                 Source Code
               </div>
-              <div className="rounded-lg overflow-hidden text-[11px]">
+              <div className="rounded-lg overflow-hidden text-[11px]" style={{ border: "1px solid var(--border)" }}>
                 <SyntaxHighlighter
                   language="python"
                   style={oneDark}
                   customStyle={{
                     margin: 0,
-                    padding: "8px 10px",
-                    borderRadius: "8px",
-                    fontSize: "11px",
-                    background: "var(--bg-secondary)",
+                    padding: "10px",
+                    background: "var(--bg-primary)",
                   }}
                 >
                   {data.code || "# No source code available"}

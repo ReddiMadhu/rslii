@@ -20,55 +20,51 @@
   --node-apply: #ec4899;       /* Pink */
   --node-unknown: #6b7280;     /* Gray */
 
-  /* Dark theme (default) */
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #111118;
-  --bg-card: #16161e;
-  --bg-card-hover: #1e1e2a;
-  --bg-glass: rgba(22, 22, 30, 0.7);
-  --border: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
-  --text-primary: #f0f0f5;
-  --text-secondary: #8888a0;
-  --text-muted: #555566;
-  --shadow-glow: 0 0 40px rgba(251, 78, 11, 0.08);
-  --radius: 12px;
+  /* Dark theme (default) - Lethal Contrast */
+  --bg-primary: #050508;
+  --bg-secondary: #0a0a0f;
+  --bg-card: #0f0f16;
+  --bg-card-hover: #161622;
+  --bg-glass: rgba(15, 15, 22, 0.6);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(251, 78, 11, 0.3); /* Orange hover border */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0b8;
+  --text-muted: #666677;
+  --shadow-glow: 0 0 50px rgba(251, 78, 11, 0.15); /* More vibrant glow */
+  --radius: 16px;
   --radius-sm: 8px;
-  --radius-lg: 16px;
+  --radius-lg: 20px;
 }
 
 [data-theme="light"] {
-  --bg-primary: #f5f5f8;
-  --bg-secondary: #eeeef2;
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #f8f8fb;
-  --bg-glass: rgba(255, 255, 255, 0.8);
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
-  --text-primary: #0a0a0f;
-  --text-secondary: #555566;
-  --text-muted: #8888a0;
-  --shadow-glow: 0 0 40px rgba(251, 78, 11, 0.06);
+  --bg-card-hover: #f1f3f5;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --border: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(251, 78, 11, 0.4); /* Orange hover border */
+  --text-primary: #050508;
+  --text-secondary: #495057;
+  --text-muted: #868e96;
+  --shadow-glow: 0 0 40px rgba(251, 78, 11, 0.12);
 }
 
 /* ===== Global Styles ===== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html {
+@layer base {
+  html {
   font-family: "Geist Variable", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  min-height: 100vh;
-  transition: background 0.3s ease, color 0.3s ease;
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
 }
 
 /* ===== Scrollbar ===== */
@@ -88,28 +84,30 @@ body {
 }
 
 /* ===== Utility Classes ===== */
-.glass {
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
+@layer components {
+  .glass {
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
 
-.glass-hover:hover {
-  border-color: var(--border-hover);
-  background: var(--bg-card-hover);
-}
+  .glass-hover:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-card-hover);
+  }
 
-.glow {
-  box-shadow: var(--shadow-glow);
-}
+  .glow {
+    box-shadow: var(--shadow-glow);
+  }
 
-.gradient-text {
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  .gradient-text {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 }
 
 /* ===== Animations ===== */
@@ -128,16 +126,19 @@ body {
   50% { box-shadow: 0 0 20px 4px rgba(251, 78, 11, 0.15); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out;
-}
+/* ===== Animations ===== */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
 
-.animate-slide-up {
-  animation: slideUp 0.5s ease-out;
-}
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
 }
 
 /* ===== React Flow Overrides ===== */
