@@ -1,4 +1,6 @@
-const API_BASE = "/api";
+import { getApiBase } from "./apiBase";
+
+const API_BASE = getApiBase();
 
 export async function healthCheck() {
   const res = await fetch(`${API_BASE}/health`);

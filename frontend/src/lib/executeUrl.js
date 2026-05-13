@@ -1,12 +1,14 @@
+import { getApiOrigin } from "./apiBase";
+
 /**
  * URL for POST /api/execute (SSE).
- * In dev, call the FastAPI server directly so the Vite proxy does not buffer
- * the event stream; in prod use same-origin /api/execute.
+ * Production split-host: VITE_API_ORIGIN (see apiBase.js).
+ * Dev: bypass Vite proxy to reduce SSE buffering (direct :8000).
  */
 export function getExecuteStreamUrl() {
-  const envBase = import.meta.env.VITE_API_ORIGIN;
-  if (envBase) {
-    return `${String(envBase).replace(/\/$/, "")}/api/execute`;
+  const o = getApiOrigin();
+  if (o) {
+    return `${o}/api/execute`;
   }
   if (import.meta.env.DEV && typeof window !== "undefined") {
     const { protocol, hostname } = window.location;

@@ -56,10 +56,15 @@ def _schedule_session_cleanup(session_id: str) -> None:
     _SESSION_CLEANUP_TIMERS[session_id] = t
     t.start()
 
-# CORS — allow frontend dev server
+# CORS — dev + optional production (Azure Storage static site, App Service URL, etc.)
+_default_cors = ["http://localhost:5173", "http://127.0.0.1:5173"]
+_extra = os.environ.get("RSLI_CORS_ORIGINS", "")
+_extra_list = [x.strip() for x in _extra.split(",") if x.strip()]
+_cors_origins = list(dict.fromkeys(_default_cors + _extra_list))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
