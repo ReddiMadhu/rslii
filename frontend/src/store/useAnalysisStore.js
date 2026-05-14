@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export const APP_STATES = {
+  LANDING: "landing",
   UPLOAD_SCRIPT: "upload_script",
   SOURCE_MAPPING: "source_mapping",
   EXECUTING: "executing",
@@ -8,12 +9,12 @@ export const APP_STATES = {
 };
 
 const useAnalysisStore = create((set) => ({
-  appState: APP_STATES.UPLOAD_SCRIPT,
+  appState: APP_STATES.LANDING,
   parseResult: null,
   pipelineCode: "",
   pipelineFilename: null,
   fileMappings: {},
-  enableLlmForExecute: false,
+  enableLlmForExecute: true,
   executionProgress: {},
   liveExecSummary: null,
   execLog: [],
@@ -116,7 +117,7 @@ const useAnalysisStore = create((set) => ({
       pipelineCode: "",
       pipelineFilename: null,
       fileMappings: {},
-      enableLlmForExecute: false,
+      enableLlmForExecute: true,
       executionProgress: {},
       liveExecSummary: null,
       execLog: [],

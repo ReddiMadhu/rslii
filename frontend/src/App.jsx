@@ -9,6 +9,7 @@ import SummaryTab from "./components/SummaryTab";
 import LineageTab from "./components/LineageTab";
 import ColumnLineageTab from "./components/ColumnLineageTab";
 import NodeDetail from "./components/NodeDetail";
+import LandingPage from "./components/LandingPage";
 
 import "./index.css";
 
@@ -140,9 +141,28 @@ function App() {
     }
   };
 
+  if (appState === APP_STATES.LANDING) {
+    return (
+      <>
+        <LandingPage themeToggle={<ThemeToggle />} />
+        <Toaster
+          theme="dark"
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
+            },
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <div
-      className="min-h-screen flex flex-col"
+      className="min-h-screen flex flex-col animate-fade-in"
       style={{ background: "var(--bg-primary)" }}
     >
       <header

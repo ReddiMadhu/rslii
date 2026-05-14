@@ -10,8 +10,6 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import {
   Columns3,
-  ArrowDown,
-  ArrowUp,
   Search,
   ChevronDown,
   ChevronUp,
@@ -141,6 +139,30 @@ function ColumnTraceNodeComponent({ data }) {
               </div>
             </div>
           )}
+          {d.description && (
+            <div className="ctn-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: "4px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span className="ctn-label">Description</span>
+                {d.descriptionSource === "llm" && (
+                  <span
+                    style={{
+                      fontSize: "9px",
+                      fontWeight: 600,
+                      padding: "2px 6px",
+                      borderRadius: "9999px",
+                      background: "rgba(168, 85, 247, 0.15)",
+                      color: "#a855f7",
+                    }}
+                  >
+                    AI
+                  </span>
+                )}
+              </div>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
+                {d.description}
+              </span>
+            </div>
+          )}
           {d.code && (
             <div className="ctn-code">
               <code>{d.code}</code>
@@ -217,9 +239,9 @@ function JourneySummary({ summary }) {
         </div>
         <span className="js-direction-badge">
           {summary.direction === "downstream" ? (
-            <><ArrowDown size={12} /> Source {"->"} Target</>
+            <>Source {"->"} Target</>
           ) : (
-            <><ArrowUp size={12} /> Target {"->"} Source</>
+            <>Target {"->"} Source</>
           )}
         </span>
       </div>
@@ -407,13 +429,13 @@ export default function ColumnLineageTab({ result }) {
             className={`clt-dir-btn ${direction === "downstream" ? "active" : ""}`}
             onClick={() => setDirection("downstream")}
           >
-            <ArrowDown size={13} /> Source {"->"} Target
+            Source {"->"} Target
           </button>
           <button
             className={`clt-dir-btn ${direction === "upstream" ? "active" : ""}`}
             onClick={() => setDirection("upstream")}
           >
-            <ArrowUp size={13} /> Target {"->"} Source
+            Target {"->"} Source
           </button>
         </div>
       </div>

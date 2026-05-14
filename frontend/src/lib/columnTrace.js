@@ -299,6 +299,8 @@ function _buildTraceNode(node, colName, mapping) {
     operationColor: node.color || "",
     operationIcon: node.icon || "",
     code: node.code || "",
+    description: node.description || "",
+    descriptionSource: node.description_source || "template",
     lineNumber: node.line_number,
     rowsIn: runtime.rows_in,
     rowsOut: runtime.rows_out,
@@ -359,6 +361,9 @@ function _generateSummary(column, direction, traceNodes) {
     }
   } else {
     lines.push(`Located at: ${firstNode.operationLabel}`);
+    if (firstNode.rowsOut != null) {
+      lines.push(`Current: ${firstNode.rowsOut.toLocaleString()} rows, ${firstNode.dtype}`);
+    }
   }
 
   // Journey
@@ -395,12 +400,16 @@ function _generateSummary(column, direction, traceNodes) {
 
   // Destination
   if (!wasDropped && lastNode) {
-    const lastCat = lastNode.operationCategory;
-    if (lastCat === "target") {
-      lines.push(`Written to: ${lastNode.operationLabel}`);
-    }
-    if (lastNode.rowsOut != null) {
-      lines.push(`Final: ${lastNode.rowsOut.toLocaleString()} rows`);
+    if (direction === "downstream") {
+      const lastCat = lastNode.operationCategory;
+      if (lastCat === "target") {
+        lines.push(`Written to: ${lastNode.operationLabel}`);
+      }
+      if (lastNode.rowsOut != null) {
+        lines.push(`Final: ${lastNode.rowsOut.toLocaleString()} rows`);
+      }
+    } else {
+      lines.push(`Originated at: ${lastNode.operationLabel}`);
     }
   }
 

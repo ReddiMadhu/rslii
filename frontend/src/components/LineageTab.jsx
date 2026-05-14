@@ -62,7 +62,7 @@ function ColumnChangeBadges({ rt, color }) {
 
   return (
     <div className="space-y-1.5">
-      <div className="text-[10px] font-semibold" style={{ color }}>Column Changes</div>
+      <div className="text-[10px] font-semibold" style={{ color }}>Column Level Changes</div>
       {sections.map(({ key, items }) => {
         const c = COLUMN_COLORS[key];
         return (

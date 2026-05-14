@@ -6,6 +6,9 @@ import useAnalysisStore from "../store/useAnalysisStore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { COLUMN_COLORS } from "./LineageTab";
 
+const MERGE_LEFT_COLOR = "#3b82f6";
+const MERGE_RIGHT_COLOR = "#22c55e";
+
 /* ── helper: build a column → category map from runtime data ── */
 function buildColumnMeta(rt) {
   const meta = {};
@@ -40,6 +43,23 @@ export default function NodeDetail({ result }) {
   const rt = node.runtime || {};
   const columnMeta = useMemo(() => buildColumnMeta(rt), [rt]);
   const isSource = useMemo(() => !result?.edges?.some((e) => e.target === node.id), [result, node.id]);
+  const isMerge = useMemo(() => node.method === "merge" || node.method === "join" || node.method === "concat", [node.method]);
+
+  // For merge nodes, find the variable names of the two input DataFrames from edges
+  const mergeInputs = useMemo(() => {
+    if (!isMerge || !result?.edges) return [];
+    const incomingEdges = result.edges.filter((e) => e.target === node.id);
+    if (incomingEdges.length < 2) {
+      // Single input — left is the incoming variable
+      return incomingEdges.length === 1
+        ? [{ name: incomingEdges[0].variable || "Left", color: MERGE_LEFT_COLOR }]
+        : [];
+    }
+    return [
+      { name: incomingEdges[0].variable || "Left", color: MERGE_LEFT_COLOR },
+      { name: incomingEdges[1].variable || "Right", color: MERGE_RIGHT_COLOR },
+    ];
+  }, [isMerge, result, node.id]);
 
   return (
     <div
@@ -90,27 +110,31 @@ export default function NodeDetail({ result }) {
               {rt.cols_out ?? "—"}
             </strong>
           </div>
-          <div>Filtered: {rt.rows_filtered ?? 0}</div>
-          <div>Deduped: {rt.duplicates_removed ?? 0}</div>
-          <div>Nulls handled: {rt.nulls_handled ?? 0}</div>
-          <div>Duration: {rt.duration_ms ?? "—"} ms</div>
+          {!isSource && <div>Filtered: {rt.rows_filtered ?? 0}</div>}
+          {!isSource && <div>Deduped: {rt.duplicates_removed ?? 0}</div>}
+          {!isSource && <div>Nulls handled: {rt.nulls_handled ?? 0}</div>}
+          {!isSource && <div>Duration: {rt.duration_ms ?? "—"} ms</div>}
           {rt.error && <div className="text-red-400">{rt.error}</div>}
         </div>
       </AccordionSection>
 
       {/* ── Column Changes (colour-coded categories) ── */}
       {!isSource && (
-        <AccordionSection title="Column changes" icon={Columns} defaultOpen>
+        <AccordionSection title="Column Level Changes" icon={Columns} defaultOpen>
           <ColumnChangeDetail rt={rt} />
         </AccordionSection>
       )}
 
-      {/* ── Schema (colour-coded) ── */}
       <AccordionSection title="Schema" icon={Table2}>
         <SchemaView
           before={rt.dtypes_before}
           after={rt.dtypes_after}
           columnMeta={columnMeta}
+          isSource={isSource}
+          isMerge={isMerge}
+          mergeInputs={mergeInputs}
+          joinedColumns={rt.cols_joined || []}
+          joinKeys={node.schema_refs || []}
         />
       </AccordionSection>
 
