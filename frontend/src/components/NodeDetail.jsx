@@ -39,6 +39,7 @@ export default function NodeDetail({ result }) {
 
   const rt = node.runtime || {};
   const columnMeta = useMemo(() => buildColumnMeta(rt), [rt]);
+  const isSource = useMemo(() => !result?.edges?.some((e) => e.target === node.id), [result, node.id]);
 
   return (
     <div
@@ -65,7 +66,7 @@ export default function NodeDetail({ result }) {
         <div className="text-[11px] space-y-1" style={{ color: "var(--text-secondary)" }}>
           <div className="flex items-center gap-2">
             <span>
-              Rows:{" "}
+              Outgoing Rows:{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {rt.rows_out != null ? rt.rows_out.toLocaleString() : "—"}
               </strong>
@@ -84,7 +85,7 @@ export default function NodeDetail({ result }) {
             )}
           </div>
           <div>
-            Cols:{" "}
+            Outgoing Columns:{" "}
             <strong style={{ color: "var(--text-primary)" }}>
               {rt.cols_out ?? "—"}
             </strong>
@@ -98,9 +99,11 @@ export default function NodeDetail({ result }) {
       </AccordionSection>
 
       {/* ── Column Changes (colour-coded categories) ── */}
-      <AccordionSection title="Column changes" icon={Columns} defaultOpen>
-        <ColumnChangeDetail rt={rt} />
-      </AccordionSection>
+      {!isSource && (
+        <AccordionSection title="Column changes" icon={Columns} defaultOpen>
+          <ColumnChangeDetail rt={rt} />
+        </AccordionSection>
+      )}
 
       {/* ── Schema (colour-coded) ── */}
       <AccordionSection title="Schema" icon={Table2}>

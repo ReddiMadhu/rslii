@@ -230,7 +230,7 @@ function ETLNodeComponent({ data }) {
             {rt && typeof rt.rows_out === "number" && (
               <div className="text-[10px] space-y-1" style={{ color: "var(--text-secondary)" }}>
                 <div className="flex items-center gap-2">
-                  <span>Rows: <strong style={{ color: "var(--text-primary)" }}>{rt.rows_out.toLocaleString()}</strong></span>
+                  <span>Outgoing Rows: <strong style={{ color: "var(--text-primary)" }}>{rt.rows_out.toLocaleString()}</strong></span>
                   {rt.rows_in != null && rt.rows_in !== rt.rows_out && (
                     <span
                       className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
@@ -243,13 +243,13 @@ function ETLNodeComponent({ data }) {
                     </span>
                   )}
                 </div>
-                <div>Cols: <strong style={{ color: "var(--text-primary)" }}>{rt.cols_out}</strong></div>
+                <div>Outgoing Columns: <strong style={{ color: "var(--text-primary)" }}>{rt.cols_out}</strong></div>
                 {rt.duration_ms != null && <div>Duration: {rt.duration_ms} ms</div>}
               </div>
             )}
 
             {/* Categorised Column Changes */}
-            {rt && <ColumnChangeBadges rt={rt} color={data.color} />}
+            {rt && !data.isSource && <ColumnChangeBadges rt={rt} color={data.color} />}
 
             {rt?.error && (
               <div className="text-[10px] text-red-400 break-all">{rt.error}</div>
@@ -381,9 +381,11 @@ export default function LineageTab({ result }) {
         id: n.id,
         type: "etlNode",
         position: positions[n.id] || { x: 0, y: 0 },
+        zIndex: useAnalysisStore.getState().expandedNodes.has(n.id) ? 1000 : 0,
         data: {
           nodeId: n.id,
           label: n.label,
+          isSource: !apiEdges.some(e => e.target === n.id),
           description: n.description,
           descriptionSource: n.description_source,
           code: n.code,

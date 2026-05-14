@@ -79,11 +79,11 @@ function ColumnTraceNodeComponent({ data }) {
         <div className="ctn-metrics-compact">
           {d.rowsIn != null && d.rowsOut != null && (
             <span>
-              {d.rowsIn.toLocaleString()} → {d.rowsOut.toLocaleString()} rows
+              {d.rowsIn.toLocaleString()} → {d.rowsOut.toLocaleString()} outgoing rows
             </span>
           )}
           {d.rowsOut != null && d.rowsIn == null && (
-            <span>{d.rowsOut.toLocaleString()} rows</span>
+            <span>{d.rowsOut.toLocaleString()} outgoing rows</span>
           )}
           {d.nullCount > 0 && (
             <span style={{ color: "#eab308" }}>⚠ {d.nullCount} nulls</span>
@@ -96,7 +96,7 @@ function ColumnTraceNodeComponent({ data }) {
         <div className="ctn-detail">
           {d.rowsIn != null && (
             <div className="ctn-row">
-              <span className="ctn-label">Rows</span>
+              <span className="ctn-label">Outgoing Rows</span>
               <span>
                 {d.rowsIn.toLocaleString()} → {d.rowsOut?.toLocaleString() ?? "?"}{" "}
                 {d.rowsIn !== d.rowsOut && (
@@ -115,7 +115,7 @@ function ColumnTraceNodeComponent({ data }) {
           )}
           {d.rowsOut != null && d.rowsIn == null && (
             <div className="ctn-row">
-              <span className="ctn-label">Rows</span>
+              <span className="ctn-label">Outgoing Rows</span>
               <span>{d.rowsOut.toLocaleString()}</span>
             </div>
           )}
@@ -217,9 +217,9 @@ function JourneySummary({ summary }) {
         </div>
         <span className="js-direction-badge">
           {summary.direction === "downstream" ? (
-            <><ArrowDown size={12} /> Downstream</>
+            <><ArrowDown size={12} /> Source {"->"} Target</>
           ) : (
-            <><ArrowUp size={12} /> Upstream</>
+            <><ArrowUp size={12} /> Target {"->"} Source</>
           )}
         </span>
       </div>
@@ -376,7 +376,7 @@ export default function ColumnLineageTab({ result }) {
               )}
               {filteredOutput.length > 0 && (
                 <>
-                  <div className="clt-dropdown-section">Output Columns</div>
+                  <div className="clt-dropdown-section">Target Columns</div>
                   {filteredOutput.map((c) => (
                     <button
                       key={`out-${c.name}`}
@@ -407,13 +407,13 @@ export default function ColumnLineageTab({ result }) {
             className={`clt-dir-btn ${direction === "downstream" ? "active" : ""}`}
             onClick={() => setDirection("downstream")}
           >
-            <ArrowDown size={13} /> Downstream
+            <ArrowDown size={13} /> Source {"->"} Target
           </button>
           <button
             className={`clt-dir-btn ${direction === "upstream" ? "active" : ""}`}
             onClick={() => setDirection("upstream")}
           >
-            <ArrowUp size={13} /> Upstream
+            <ArrowUp size={13} /> Target {"->"} Source
           </button>
         </div>
       </div>
