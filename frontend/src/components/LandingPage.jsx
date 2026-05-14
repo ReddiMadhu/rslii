@@ -30,10 +30,7 @@ function LandingPage({ themeToggle }) {
       {/* Navigation */}
       <header className="flex items-center justify-between px-8 py-5 z-10">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl shadow-[0_0_20px_rgba(251,78,11,0.3)] bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)]">
-            <img src="/etlpulse_ai_logo.svg" alt="Logo" className="w-5 h-5" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">ETLPulse.AI</span>
+          <img src="/etlpulse_ai_logo.svg" alt="ETLPulse.AI" className="h-10 w-auto" />
         </div>
         <div>
           {themeToggle}

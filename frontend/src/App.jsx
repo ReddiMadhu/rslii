@@ -174,15 +174,7 @@ function App() {
         }}
       >
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl shadow-[0_0_20px_rgba(251,78,11,0.3)] bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)]">
-            <img src="/etlpulse_ai_logo.svg" alt="Logo" className="w-5 h-5" />
-          </div>
-          <h1
-            className="text-lg font-bold tracking-tight"
-            style={{ color: "var(--text-primary)" }}
-          >
-            ETLPulse.AI
-          </h1>
+          <img src="/etlpulse_ai_logo.svg" alt="ETLPulse.AI" className="h-8 w-auto" />
           <span
             className="text-[10px] font-medium px-2 py-0.5 rounded-full"
             style={{
