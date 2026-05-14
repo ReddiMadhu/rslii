@@ -33,7 +33,66 @@ const iconMap = {
   "help-circle": HelpCircle,
 };
 
-// ─── Custom Node Component ───
+// ─── Column-change colour palette ───
+export const COLUMN_COLORS = {
+  derived:     { bg: "rgba(34,197,94,0.12)",  color: "#22c55e", label: "Derived" },
+  joined:      { bg: "rgba(59,130,246,0.12)", color: "#3b82f6", label: "Joined" },
+  removed:     { bg: "rgba(239,68,68,0.12)",  color: "#ef4444", label: "Removed" },
+  renamed:     { bg: "rgba(249,115,22,0.12)", color: "#f97316", label: "Renamed" },
+  transformed: { bg: "rgba(234,179,8,0.15)",  color: "#eab308", label: "Transformed" },
+};
+
+// ─── Column Change Badges (shared between node expansion & detail panel) ───
+function ColumnChangeBadges({ rt, color }) {
+  const sections = [];
+
+  const derived = rt.cols_derived || [];
+  const joined  = rt.cols_joined || [];
+  const removed = rt.cols_removed || [];
+  const renamed = rt.cols_renamed || {};
+  const transformed = rt.cols_transformed || {};
+
+  if (derived.length) sections.push({ key: "derived", items: derived });
+  if (joined.length)  sections.push({ key: "joined",  items: joined });
+  if (removed.length) sections.push({ key: "removed", items: removed });
+  if (Object.keys(renamed).length) sections.push({ key: "renamed", items: renamed });
+  if (Object.keys(transformed).length) sections.push({ key: "transformed", items: transformed });
+
+  if (!sections.length) return null;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[10px] font-semibold" style={{ color }}>Column Changes</div>
+      {sections.map(({ key, items }) => {
+        const c = COLUMN_COLORS[key];
+        return (
+          <div key={key}>
+            <div className="text-[9px] font-semibold mb-0.5" style={{ color: c.color }}>{c.label}</div>
+            <div className="flex flex-wrap gap-1">
+              {key === "renamed"
+                ? Object.entries(items).map(([old, nw]) => (
+                    <span key={old} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
+                      {old} → {nw}
+                    </span>
+                  ))
+                : key === "transformed"
+                ? Object.entries(items).map(([col, d]) => (
+                    <span key={col} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
+                      {col} <span style={{ opacity: 0.7 }}>({d.from} → {d.to})</span>
+                    </span>
+                  ))
+                : items.map((col) => (
+                    <span key={col} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
+                      {col}
+                    </span>
+                  ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 function ETLNodeComponent({ data }) {
   const expandedNodes = useAnalysisStore((state) => state.expandedNodes);
   const toggleNodeExpanded = useAnalysisStore((state) => state.toggleNodeExpanded);
@@ -46,9 +105,9 @@ function ETLNodeComponent({ data }) {
     exec === "failed"
       ? "#ef4444"
       : exec === "completed"
-      ? "#22c55e"
+      ? "var(--primary)"
       : exec === "executing"
-      ? "#fb923c"
+      ? "#22c55e"
       : exec === "not_reached"
       ? "var(--text-muted)"
       : isExpanded
@@ -167,39 +226,31 @@ function ETLNodeComponent({ data }) {
               </div>
             </div>
 
-            {/* Schema Refs */}
-            {data.schemaRefs && data.schemaRefs.length > 0 && (
-              <div>
-                <div className="text-[10px] font-semibold mb-1" style={{ color: data.color }}>
-                  Columns Referenced
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {data.schemaRefs.map((col) => (
-                    <span
-                      key={col}
-                      className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                      style={{
-                        background: `${data.color}15`,
-                        color: data.color,
-                      }}
-                    >
-                      {col}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Runtime Metrics — current-state format */}
             {rt && typeof rt.rows_out === "number" && (
               <div className="text-[10px] space-y-1" style={{ color: "var(--text-secondary)" }}>
-                <div>
-                  Rows: {rt.rows_in ?? "—"} → {rt.rows_out}
+                <div className="flex items-center gap-2">
+                  <span>Rows: <strong style={{ color: "var(--text-primary)" }}>{rt.rows_out.toLocaleString()}</strong></span>
+                  {rt.rows_in != null && rt.rows_in !== rt.rows_out && (
+                    <span
+                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: rt.rows_out < rt.rows_in ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
+                        color: rt.rows_out < rt.rows_in ? "#ef4444" : "#22c55e",
+                      }}
+                    >
+                      {rt.rows_out > rt.rows_in ? "+" : ""}{(rt.rows_out - rt.rows_in).toLocaleString()}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  Cols: {rt.cols_in ?? "—"} → {rt.cols_out}
-                </div>
+                <div>Cols: <strong style={{ color: "var(--text-primary)" }}>{rt.cols_out}</strong></div>
                 {rt.duration_ms != null && <div>Duration: {rt.duration_ms} ms</div>}
               </div>
             )}
+
+            {/* Categorised Column Changes */}
+            {rt && <ColumnChangeBadges rt={rt} color={data.color} />}
+
             {rt?.error && (
               <div className="text-[10px] text-red-400 break-all">{rt.error}</div>
             )}
@@ -281,7 +332,7 @@ function layoutNodes(apiNodes, apiEdges) {
 
   // Position nodes
   const NODE_WIDTH = 280;
-  const X_GAP = 320;
+  const X_GAP = 340;
   const Y_GAP = 100;
   const positions = {};
 

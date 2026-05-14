@@ -25,6 +25,9 @@ class NodeSnapshot:
     cols_added: list[str] = field(default_factory=list)
     cols_removed: list[str] = field(default_factory=list)
     cols_renamed: dict[str, str] = field(default_factory=dict)
+    cols_transformed: dict[str, dict[str, str]] = field(default_factory=dict)  # {col: {"from": dtype, "to": dtype}}
+    cols_derived: list[str] = field(default_factory=list)
+    cols_joined: list[str] = field(default_factory=list)
     rows_filtered: int = 0
     duplicates_removed: int = 0
     nulls_handled: int = 0

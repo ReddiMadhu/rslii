@@ -8,7 +8,7 @@ import SourceMapper from "./components/SourceMapper";
 import SummaryTab from "./components/SummaryTab";
 import LineageTab from "./components/LineageTab";
 import NodeDetail from "./components/NodeDetail";
-import ExecutionStream from "./components/ExecutionStream";
+
 import "./index.css";
 
 function ThemeToggle() {
@@ -261,7 +261,7 @@ function App() {
       <main className="flex-1 flex flex-col px-6 py-6">
         {error && (
           <div
-            className="w-full max-w-5xl mx-auto mb-6 px-4 py-3 rounded-xl text-sm font-medium animate-fade-in"
+            className="w-full max-w-7xl mx-auto mb-6 px-4 py-3 rounded-xl text-sm font-medium animate-fade-in"
             style={{
               background: "rgba(239, 68, 68, 0.1)",
               border: "1px solid rgba(239, 68, 68, 0.2)",
@@ -285,8 +285,7 @@ function App() {
         )}
 
         {showTabs && displayResult && (
-          <div className="animate-fade-in w-full max-w-6xl mx-auto">
-            {appState === APP_STATES.EXECUTING && <ExecutionStream />}
+          <div className="animate-fade-in w-full max-w-7xl mx-auto">
             {activeTab === "summary" ? (
               <SummaryTab result={displayResult} />
             ) : (

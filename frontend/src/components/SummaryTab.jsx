@@ -147,7 +147,7 @@ export default function SummaryTab({ result }) {
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-6">
       {summary.total_duration_ms != null && (
         <div
           className="px-4 py-3 rounded-2xl text-sm font-medium flex flex-wrap gap-4"

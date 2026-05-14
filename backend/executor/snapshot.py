@@ -14,9 +14,17 @@ if TYPE_CHECKING:
 def rsli_snapshot_fn(node_id: str, method: str, df: Any, ctx: RSLIContext) -> None:
     """Injected into user code after each ETL step."""
     import pandas as pd
+    from pandas.api.typing import DataFrameGroupBy
 
-    if df is None or not isinstance(df, pd.DataFrame):
+    if df is None:
         return
+
+    is_groupby = isinstance(df, DataFrameGroupBy)
+    if not isinstance(df, pd.DataFrame) and not is_groupby:
+        return
+
+    # If it's a GroupBy object, we extract the underlying dataframe to get columns/stats
+    df = df.obj if is_groupby else df
 
     end = time.perf_counter()
     duration_ms = round((end - ctx.step_start) * 1000, 2)
@@ -50,6 +58,24 @@ def rsli_snapshot_fn(node_id: str, method: str, df: Any, ctx: RSLIContext) -> No
     snap.cols_added = [c for c in cols_after if c not in cols_before]
     snap.cols_removed = [c for c in cols_before if c not in cols_after]
     snap.cols_renamed = dict(ctx.get_rename_map(node_id))
+
+    # Detect dtype-transformed columns (present in both before & after but dtype changed)
+    dtypes_before = snap.dtypes_before
+    dtypes_after = snap.dtypes_after
+    snap.cols_transformed = {
+        c: {"from": dtypes_before[c], "to": dtypes_after[c]}
+        for c in cols_after
+        if c in cols_before and c in dtypes_before and c in dtypes_after
+        and dtypes_before[c] != dtypes_after[c]
+    }
+
+    # Categorise new columns: derived (computed) vs joined (from merge/join)
+    if method in ("merge", "join", "concat"):
+        snap.cols_joined = list(snap.cols_added)
+        snap.cols_derived = []
+    else:
+        snap.cols_derived = list(snap.cols_added)
+        snap.cols_joined = []
 
     ri, ro = rows_in or 0, len(df)
     if method in ("dropna", "fillna"):
