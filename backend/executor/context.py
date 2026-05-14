@@ -179,6 +179,21 @@ class RSLIContext:
                 nd.setdefault("status", "not_reached")
             nodes_out.append(nd)
 
+        # --- Column lineage (post-execution enrichment) ---
+        from .column_lineage import ColumnLineageBuilder
+
+        cl_builder = ColumnLineageBuilder(
+            self.nodes_template, self.edges, self.snapshots,
+        )
+        column_lineage_data = cl_builder.build()
+        discovered_columns = cl_builder.get_discovered_columns()
+
+        # Embed column_lineage into each completed node's runtime dict
+        for nd in nodes_out:
+            nid = nd["id"]
+            if nid in column_lineage_data and isinstance(nd.get("runtime"), dict):
+                nd["runtime"]["column_lineage"] = column_lineage_data[nid]
+
         agg = self._aggregate_summary_metrics(nodes_out)
         base = dict(base_summary or {})
         summary = {
@@ -206,6 +221,7 @@ class RSLIContext:
             "edges": self.edges,
             "warnings": warnings,
             "output_files": output_files_meta,
+            "discovered_columns": discovered_columns,
         }
 
     def _aggregate_summary_metrics(self, nodes_out: list[dict]) -> dict:

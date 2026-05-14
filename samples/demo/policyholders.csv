@@ -1,0 +1,16 @@
+policyholder_id,full_name,date_of_birth,gender,region,smoker_status,risk_class,agent_notes
+PH001,Sarah Mitchell,1985-03-22,F,Northeast,No,Preferred,Great health history
+PH002,James Wilson,1972-11-05,M,South,Yes,Standard,
+PH003,Maria Garcia,1990-07-14,F,West,No,Preferred,Fitness enthusiast
+PH004,Robert Chen,1965-01-30,M,Midwest,No,Standard,Family history of heart disease
+PH005,Emily Johnson,1988-09-18,F,Northeast,No,Preferred,
+PH006,David Kim,1955-04-12,M,West,Yes,Substandard,COPD diagnosis 2019
+PH007,Lisa Anderson,1979-06-25,F,South,No,Standard,
+PH008,Michael Brown,1968-12-03,M,Northeast,Yes,Standard,Former smoker - quit 2020
+PH009,Jennifer Lee,1995-02-28,F,Midwest,No,Preferred,
+PH010,Thomas Wright,1960-08-15,M,South,No,Standard,Diabetes managed
+PH011,Amanda Davis,1983-05-09,F,West,No,Preferred,
+PH012,Christopher Martinez,1976-10-20,M,Midwest,Yes,Substandard,
+PH013,Rachel Taylor,1992-01-14,F,Northeast,No,Preferred,
+PH014,Daniel Thompson,1958-07-07,M,South,Yes,Standard,
+PH015,Sophia Hernandez,1987-11-30,F,West,No,Preferred,Tri-athlete

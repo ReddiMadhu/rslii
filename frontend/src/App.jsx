@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { healthCheck, parseCode } from "./lib/api";
-import { Sun, Moon, Zap, RotateCcw, LayoutDashboard, GitBranch, RefreshCw } from "lucide-react";
+import { Sun, Moon, Zap, RotateCcw, LayoutDashboard, GitBranch, Columns3, RefreshCw } from "lucide-react";
 import useAnalysisStore, { APP_STATES } from "./store/useAnalysisStore";
 import UploadZone from "./components/UploadZone";
 import SourceMapper from "./components/SourceMapper";
 import SummaryTab from "./components/SummaryTab";
 import LineageTab from "./components/LineageTab";
+import ColumnLineageTab from "./components/ColumnLineageTab";
 import NodeDetail from "./components/NodeDetail";
 
 import "./index.css";
@@ -195,6 +196,30 @@ function App() {
                 label="Lineage"
                 onClick={() => setActiveTab("lineage")}
               />
+              <button
+                onClick={() => appState === APP_STATES.RESULTS && setActiveTab("column-lineage")}
+                disabled={appState !== APP_STATES.RESULTS}
+                className="relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 overflow-hidden"
+                style={{
+                  background: activeTab === "column-lineage" ? "var(--bg-card)" : "transparent",
+                  color: appState !== APP_STATES.RESULTS
+                    ? "var(--text-muted)"
+                    : activeTab === "column-lineage"
+                    ? "var(--primary)"
+                    : "var(--text-muted)",
+                  boxShadow: activeTab === "column-lineage" ? "0 4px 12px rgba(0,0,0,0.15)" : "none",
+                  border: activeTab === "column-lineage" ? "1px solid var(--border)" : "1px solid transparent",
+                  opacity: appState !== APP_STATES.RESULTS ? 0.4 : 1,
+                  cursor: appState !== APP_STATES.RESULTS ? "not-allowed" : "pointer",
+                }}
+                title={appState !== APP_STATES.RESULTS ? "Execute pipeline to enable column lineage" : ""}
+              >
+                {activeTab === "column-lineage" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--primary)" }} />
+                )}
+                <Columns3 size={15} className={activeTab === "column-lineage" ? "animate-pulse" : ""} />
+                Column Lineage
+              </button>
             </div>
           )}
         </div>
@@ -288,10 +313,13 @@ function App() {
           <div className="animate-fade-in w-full max-w-7xl mx-auto">
             {activeTab === "summary" ? (
               <SummaryTab result={displayResult} />
+            ) : activeTab === "column-lineage" ? (
+              <ColumnLineageTab result={displayResult} />
             ) : (
               <LineageTab result={displayResult} />
             )}
             {selectedDetailNode &&
+              activeTab !== "column-lineage" &&
               (appState === APP_STATES.RESULTS || appState === APP_STATES.EXECUTING) && (
               <NodeDetail result={displayResult} />
             )}

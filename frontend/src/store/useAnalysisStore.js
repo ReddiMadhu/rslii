@@ -24,6 +24,11 @@ const useAnalysisStore = create((set) => ({
   expandedNodes: new Set(),
   selectedDetailNode: null,
   detailPanelOpen: false,
+  // Column lineage trace state
+  columnTraceColumn: null,
+  columnTraceDirection: "downstream",
+  columnTraceData: null,
+  columnTraceExpanded: new Set(),
 
   setAppState: (appState) => set({ appState }),
   setParsed: (parseResult, code, filename) =>
@@ -91,6 +96,19 @@ const useAnalysisStore = create((set) => ({
   setSelectedDetailNode: (id) =>
     set({ selectedDetailNode: id, detailPanelOpen: id != null }),
   setDetailPanelOpen: (open) => set({ detailPanelOpen: open }),
+  // Column lineage trace actions
+  setColumnTrace: (column, direction) =>
+    set({ columnTraceColumn: column, columnTraceDirection: direction, columnTraceData: null }),
+  setColumnTraceData: (data) => set({ columnTraceData: data }),
+  resetColumnTrace: () =>
+    set({ columnTraceColumn: null, columnTraceData: null, columnTraceExpanded: new Set() }),
+  toggleColumnTraceExpanded: (nodeId) =>
+    set((state) => {
+      const next = new Set(state.columnTraceExpanded);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return { columnTraceExpanded: next };
+    }),
   reset: () =>
     set({
       appState: APP_STATES.UPLOAD_SCRIPT,
@@ -109,6 +127,10 @@ const useAnalysisStore = create((set) => ({
       expandedNodes: new Set(),
       selectedDetailNode: null,
       detailPanelOpen: false,
+      columnTraceColumn: null,
+      columnTraceDirection: "downstream",
+      columnTraceData: null,
+      columnTraceExpanded: new Set(),
     }),
   toggleNodeExpanded: (nodeId) =>
     set((state) => {
