@@ -38,10 +38,12 @@ class ETLNode:
         self.description_source = "template"
         # Resolved path / connection string for source nodes (v2 file mapping)
         self.source_connection: str = ""
+        # agg / aggregate: output column name -> input column(s) (named aggregation)
+        self.column_sources: dict[str, list[str]] = {}
 
     def to_dict(self) -> dict:
         info = get_category_info(self.category)
-        return {
+        d = {
             "id": self.id,
             "type": self.type,
             "category": self.category,
@@ -58,6 +60,9 @@ class ETLNode:
             "color": info["color"],
             "icon": info["icon"],
         }
+        if self.column_sources:
+            d["column_sources"] = self.column_sources
+        return d
 
 
 class ETLEdge:
@@ -309,6 +314,8 @@ class ASTParser:
 
             # Extract schema refs
             node.schema_refs = self._extract_schema_refs(call_node)
+            if method_name in ("agg", "aggregate") and isinstance(call_node, ast.Call):
+                node.column_sources = self._extract_agg_column_sources(call_node)
 
             if category == "source":
                 node.source_connection = self._extract_connection(call_node)
@@ -602,6 +609,50 @@ class ASTParser:
         return f"{cat_info['label']}: {method}"
 
     # ─── Schema Reference Extraction ───
+
+    def _extract_agg_column_sources(self, call_node: ast.Call) -> dict[str, list[str]]:
+        """Map aggregation output columns to source column(s) for named / dict .agg().
+
+        Supports ``.agg(out=("src", "mean"))`` and ``.agg({"col": "sum"})``.
+        """
+        out: dict[str, list[str]] = {}
+        if not isinstance(call_node.func, ast.Attribute):
+            return out
+        if call_node.func.attr not in ("agg", "aggregate"):
+            return out
+
+        def tuple_first_cols(tup: ast.Tuple) -> list[str]:
+            if not tup.elts:
+                return []
+            first = tup.elts[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                return [first.value]
+            if isinstance(first, ast.List):
+                acc: list[str] = []
+                for elt in first.elts:
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                        acc.append(elt.value)
+                return acc
+            return []
+
+        # Positional dict: .agg({"amount": "sum", "qty": "mean"})
+        for arg in call_node.args:
+            if isinstance(arg, ast.Dict):
+                for k in arg.keys:
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                        name = k.value
+                        out.setdefault(name, [name])
+
+        # Keyword named aggregation: avg=("loss", "mean")
+        for kw in call_node.keywords:
+            if kw.arg is None:
+                continue
+            if isinstance(kw.value, ast.Tuple) and kw.value.elts:
+                cols = tuple_first_cols(kw.value)
+                if cols:
+                    out[kw.arg] = cols
+
+        return out
 
     def _extract_schema_refs(self, call_node: ast.Call) -> list[str]:
         """Extract column names referenced in a call."""

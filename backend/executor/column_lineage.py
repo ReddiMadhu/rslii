@@ -156,6 +156,11 @@ class ColumnLineageBuilder:
                     r for r in schema_refs
                     if r in cols_before and r != col
                 ]
+                raw_cs = node.get("column_sources") or {}
+                col_src: dict[str, list[str]] = raw_cs if isinstance(raw_cs, dict) else {}
+                for c in col_src.get(col, []):
+                    if c in cols_before and c != col and c not in source_cols:
+                        source_cols.append(c)
                 mappings[col] = self._entry(
                     STATE_DERIVED, source_cols, dtype, null_count,
                 )

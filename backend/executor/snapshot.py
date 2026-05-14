@@ -14,17 +14,17 @@ if TYPE_CHECKING:
 def rsli_snapshot_fn(node_id: str, method: str, df: Any, ctx: RSLIContext) -> None:
     """Injected into user code after each ETL step."""
     import pandas as pd
-    from pandas.api.typing import DataFrameGroupBy
 
     if df is None:
         return
 
-    is_groupby = isinstance(df, DataFrameGroupBy)
-    if not isinstance(df, pd.DataFrame) and not is_groupby:
+    is_groupby = type(df).__name__ in ("DataFrameGroupBy", "SeriesGroupBy")
+    if not isinstance(df, (pd.DataFrame, pd.Series)) and not is_groupby:
         return
 
     # If it's a GroupBy object, we extract the underlying dataframe to get columns/stats
-    df = df.obj if is_groupby else df
+    if is_groupby:
+        df = getattr(df, "obj", df)
 
     end = time.perf_counter()
     duration_ms = round((end - ctx.step_start) * 1000, 2)

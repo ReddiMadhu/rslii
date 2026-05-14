@@ -288,3 +288,28 @@ def test_failed_node_excluded():
     result = builder.build()
 
     assert "n1" not in result
+
+
+def test_derived_agg_merges_column_sources():
+    """Named agg outputs get ``from`` populated from parser ``column_sources``."""
+    nodes = [
+        {
+            "id": "n_agg",
+            "category": "aggregation",
+            "method": "agg",
+            "schema_refs": [],
+            "column_sources": {"avg_loss_ratio": ["loss_ratio"]},
+        }
+    ]
+    snap = _snap(
+        "n_agg",
+        cols_before=["loss_ratio", "region"],
+        cols_after=["region", "avg_loss_ratio"],
+        cols_derived=["avg_loss_ratio"],
+        dtypes_after={"region": "object", "avg_loss_ratio": "float64"},
+    )
+    builder = ColumnLineageBuilder(nodes, [], {"n_agg": snap})
+    result = builder.build()
+
+    assert result["n_agg"]["avg_loss_ratio"]["state"] == STATE_DERIVED
+    assert result["n_agg"]["avg_loss_ratio"]["from"] == ["loss_ratio"]

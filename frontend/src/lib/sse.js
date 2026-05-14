@@ -50,7 +50,14 @@ export function executeWithSSE({
       let data;
       try {
         data = JSON.parse(ev.data);
-      } catch {
+      } catch (e) {
+        if (eventType === "result") {
+          onError?.(
+            new Error(
+              `Could not parse execution result (invalid JSON — often NaN/Infinity in data). ${e?.message || e}`
+            )
+          );
+        }
         return;
       }
       switch (eventType) {

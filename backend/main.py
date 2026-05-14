@@ -3,6 +3,7 @@
 import ast
 import asyncio
 import json
+import math
 import os
 import queue
 import tempfile
@@ -153,8 +154,36 @@ def validate_python_code(code: str) -> dict:
     return {"valid": True, "line_count": line_count}
 
 
+def _json_safe_for_sse(obj: object) -> object:
+    """Recursively replace NaN/Inf so JSON is valid for JavaScript JSON.parse (RFC 8259)."""
+    try:
+        import numpy as np
+
+        if isinstance(obj, np.floating):
+            v = float(obj)
+            if math.isnan(v) or math.isinf(v):
+                return None
+            return v
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+    except ImportError:
+        pass
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _json_safe_for_sse(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe_for_sse(v) for v in obj]
+    return obj
+
+
 def _sse_bytes(event: str, payload: dict) -> bytes:
-    return f"event: {event}\ndata: {json.dumps(payload, default=str)}\n\n".encode("utf-8")
+    safe = _json_safe_for_sse(payload)
+    return f"event: {event}\ndata: {json.dumps(safe, default=str, allow_nan=False)}\n\n".encode("utf-8")
 
 
 # --- Routes ---

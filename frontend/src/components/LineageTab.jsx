@@ -362,6 +362,7 @@ function layoutNodes(apiNodes, apiEdges) {
 // ─── Main Component ───
 export default function LineageTab({ result }) {
   const selectedDetailNode = useAnalysisStore((s) => s.selectedDetailNode);
+  const expandedNodes = useAnalysisStore((s) => s.expandedNodes);
   const apiNodes = result?.nodes || [];
   const apiEdges = result?.edges || [];
 
@@ -381,7 +382,7 @@ export default function LineageTab({ result }) {
         id: n.id,
         type: "etlNode",
         position: positions[n.id] || { x: 0, y: 0 },
-        zIndex: useAnalysisStore.getState().expandedNodes.has(n.id) ? 1000 : 0,
+        zIndex: expandedNodes.has(n.id) ? 1000 : 0,
         data: {
           nodeId: n.id,
           label: n.label,
@@ -399,7 +400,7 @@ export default function LineageTab({ result }) {
           runtime: n.runtime,
         },
       })),
-    [apiNodes, positions]
+    [apiNodes, positions, expandedNodes]
   );
 
   const flowEdges = useMemo(
