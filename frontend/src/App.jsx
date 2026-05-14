@@ -174,19 +174,14 @@ function App() {
         }}
       >
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center justify-center w-9 h-9 rounded-xl shadow-[0_0_20px_rgba(251,78,11,0.3)]"
-            style={{
-              background: "linear-gradient(135deg, var(--primary), var(--primary-dark))",
-            }}
-          >
-            <Zap size={18} color="white" />
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl shadow-[0_0_20px_rgba(251,78,11,0.3)] bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)]">
+            <img src="/etlpulse_ai_logo.svg" alt="Logo" className="w-5 h-5" />
           </div>
           <h1
             className="text-lg font-bold tracking-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            RSLI
+            ETLPulse.AI
           </h1>
           <span
             className="text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -207,13 +202,13 @@ function App() {
               <TabButton
                 active={activeTab === "summary"}
                 icon={LayoutDashboard}
-                label="Summary"
+                label="Pipeline overview"
                 onClick={() => setActiveTab("summary")}
               />
               <TabButton
                 active={activeTab === "lineage"}
                 icon={GitBranch}
-                label="Lineage"
+                label="Lineage explorer"
                 onClick={() => setActiveTab("lineage")}
               />
               <button
@@ -238,7 +233,7 @@ function App() {
                   <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--primary)" }} />
                 )}
                 <Columns3 size={15} className={activeTab === "column-lineage" ? "animate-pulse" : ""} />
-                Column Lineage
+                Column-level Journey
               </button>
             </div>
           )}

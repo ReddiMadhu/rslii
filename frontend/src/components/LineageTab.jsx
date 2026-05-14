@@ -12,11 +12,11 @@ import "reactflow/dist/style.css";
 import {
   Database, HardDrive, Filter, GitMerge, BarChart2, Shuffle,
   Sparkles, Columns, ArrowUpDown, Zap, HelpCircle, Repeat,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, RefreshCw
 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import useAnalysisStore from "../store/useAnalysisStore";
+import useAnalysisStore, { APP_STATES } from "../store/useAnalysisStore";
 
 // ─── Icon Map ───
 const iconMap = {
@@ -363,6 +363,7 @@ function layoutNodes(apiNodes, apiEdges) {
 export default function LineageTab({ result }) {
   const selectedDetailNode = useAnalysisStore((s) => s.selectedDetailNode);
   const expandedNodes = useAnalysisStore((s) => s.expandedNodes);
+  const appState = useAnalysisStore((s) => s.appState);
   const apiNodes = result?.nodes || [];
   const apiEdges = result?.edges || [];
 
@@ -456,7 +457,7 @@ export default function LineageTab({ result }) {
 
   return (
     <div
-      className="w-full rounded-xl overflow-hidden"
+      className="w-full rounded-xl overflow-hidden relative"
       style={{
         height: selectedDetailNode ? "min(52vh, 480px)" : "calc(100vh - 200px)",
         minHeight: selectedDetailNode ? 320 : 500,
@@ -464,6 +465,21 @@ export default function LineageTab({ result }) {
         border: "1px solid var(--border)",
       }}
     >
+      {appState === APP_STATES.EXECUTING && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in pointer-events-none">
+          <div className="glass px-6 py-4 rounded-2xl border-[var(--primary)] shadow-[0_0_40px_rgba(251,78,11,0.2)] flex items-center gap-4 bg-[var(--bg-card)]">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-dark)] shadow-[0_0_15px_rgba(251,78,11,0.4)] shrink-0">
+              <RefreshCw size={20} color="white" className="animate-spin" />
+            </div>
+            <div className="flex flex-col">
+              <h3 className="text-[var(--text-primary)] font-bold text-sm">Pipeline lineage identified</h3>
+              <p className="text-[var(--text-secondary)] text-xs mt-0.5 max-w-sm">
+                Executing transformations on ingested data to generate step by step insights...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <ReactFlow
         nodes={nodes}
         edges={edges}
