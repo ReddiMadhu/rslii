@@ -11,19 +11,24 @@ import ValidationExecuteConfirm from "./ValidationExecuteConfirm";
 import ValidationSidebar from "./ValidationSidebar";
 import ValidationSection from "./ValidationSection";
 import { buildFixSummary, runPipelineExecution } from "../lib/executePipeline";
-import { sectionNeedsAction } from "../lib/validationUtils";
+import { sectionNeedsAction, showSchemaDriftInsights } from "../lib/validationUtils";
 import { useSourceOverrides } from "../store/validationSelectors";
 
 function ValidationFilePanel({ sourceId, data, onSectionSave, sectionSaved }) {
   const overrides = useSourceOverrides(sourceId);
   const mark = (section) => onSectionSave(sourceId, section);
+  const showInsights = showSchemaDriftInsights(data);
+  const findings = data.key_findings || [];
+  const alerts = data.key_alerts || [];
 
   return (
     <div className="space-y-4 min-w-0">
-      <ValidationKeyFindings findings={data.key_findings} />
+      {showInsights && findings.length > 0 && (
+        <ValidationKeyFindings findings={findings} />
+      )}
       <ValidationSampleData sampleData={data.sample_data} columns={data.columns} />
-      {(data.key_alerts || []).length > 0 && (
-        <ValidationKeyAlerts alerts={data.key_alerts} />
+      {showInsights && alerts.length > 0 && (
+        <ValidationKeyAlerts alerts={alerts} />
       )}
 
       <ValidationSection needsAction={sectionNeedsAction("additional", data, overrides)}>

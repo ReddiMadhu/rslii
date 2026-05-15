@@ -1,5 +1,13 @@
 /** Shared validation UI helpers */
 
+/** Show Key Findings / Key Alerts when schema drift includes missing columns or dtype changes. */
+export function showSchemaDriftInsights(data) {
+  if (!data) return false;
+  const missing = data.missing_columns || [];
+  const dtype = data.dtype_changes || [];
+  return missing.length > 0 || dtype.length > 0;
+}
+
 export function reasonLabel(reason) {
   const r = (reason || "").toLowerCase();
   if (r.includes("exact")) return "Exact match";
