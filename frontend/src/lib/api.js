@@ -51,3 +51,34 @@ export async function parseCode({ code, filename }) {
 export function getDownloadUrl(sessionId, filename) {
   return `${API_BASE}/download/${encodeURIComponent(sessionId)}/${encodeURIComponent(filename)}`;
 }
+
+export async function validateSources({
+  code,
+  filename,
+  fileMapping,
+  filesByFieldName,
+  enableLlm = false,
+}) {
+  const fd = new FormData();
+  fd.append("code", code);
+  fd.append("filename", filename || "pipeline.py");
+  fd.append("enable_llm", enableLlm ? "true" : "false");
+  fd.append("file_mapping", JSON.stringify(fileMapping || {}));
+  Object.entries(filesByFieldName || {}).forEach(([field, file]) => {
+    fd.append(field, file);
+  });
+
+  const res = await fetch(`${API_BASE}/validate-sources`, {
+    method: "POST",
+    body: fd,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    let message = "Validation failed";
+    if (body?.detail) {
+      message = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}

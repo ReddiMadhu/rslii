@@ -53,9 +53,12 @@ book["loss_ratio"] = (
     book["claim_amount"] / book["risk_adjusted_premium"].replace(0, float("nan"))
 ).fillna(0.0).round(4)
 
+# ── Fill missing claim_subtype ────────────────────────────────────
+book["claim_subtype"] = book["claim_subtype"].fillna("Unknown")
+
 # ── Aggregate by product × region for segment analysis ────────────
 segment_summary = book.groupby(
-    ["product_type", "region"], as_index=False
+    ["product_type", "region", "claim_subtype"], as_index=False
 ).agg(
     policy_count=("policy_number", "nunique"),
     total_face_amount=("face_amount", "sum"),

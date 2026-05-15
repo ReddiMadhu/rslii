@@ -52,6 +52,8 @@ def execute_pipeline_sync(
     session_id: str,
     temp_dir: str,
     sse_callback: Optional[Callable[[str, dict], None]] = None,
+    overrides: Optional[dict] = None,
+    pipeline_filename: str = "pipeline.py",
 ) -> dict:
     """
     Run instrumented pipeline in an existing workspace directory.
@@ -73,13 +75,24 @@ def execute_pipeline_sync(
     base_summary = parse_out.get("summary") or {}
 
     sources_meta = parser.extract_sources()
+    paths_for_exec = dict(saved_paths_by_source_id)
+    if overrides:
+        from validator.preprocess import apply_overrides_to_uploads
+
+        paths_for_exec = apply_overrides_to_uploads(
+            saved_paths_by_source_id,
+            sources_meta,
+            overrides,
+            uploads,
+        )
+
     upload_by_node_id: dict[str, str] = {}
     for s in sources_meta:
         if not s.get("requires_upload"):
             continue
         sid = s["id"]
         nid = s["node_id"]
-        p = saved_paths_by_source_id.get(sid)
+        p = paths_for_exec.get(sid)
         if p:
             upload_by_node_id[nid] = p
 
@@ -119,6 +132,19 @@ def execute_pipeline_sync(
         llm_used=False,
         base_summary=base_summary,
     )
+
+    try:
+        from validator.source_validator import persist_snapshots_after_execution
+
+        persist_snapshots_after_execution(
+            pipeline_filename,
+            sources_meta,
+            paths_for_exec,
+            result.get("nodes") or nodes,
+        )
+    except Exception:
+        pass
+
     if sse_callback:
         s = result["summary"]
         sse_callback(

@@ -1,0 +1,21 @@
+policy_number,policyholder_id,product_type,effective_date,coverage_value_usd,annual_premium,status,premium_frequency
+POL-20220001,PH001,Term Life,2022-01-15,500000,"$420.00",,Annual
+POL-20220002,PH002,Whole Life,2020-06-01,250000,"$1850.50",Active,Monthly
+POL-20220003,PH003,Term Life,2023-03-10,750000,"$310.25",,Annual
+POL-20220004,PH004,Universal Life,2019-09-22,400000,"$2200.00",Active,Quarterly
+POL-20220005,PH005,Term Life,2023-07-01,300000,"$195.00",,Monthly
+POL-20220006,PH006,Whole Life,2018-02-14,150000,"$3100.00",Active,Annual
+POL-20220007,PH007,Term Life,2021-11-30,600000,"$480.75",,Annual
+POL-20220008,PH008,Universal Life,2022-04-18,350000,"$1575.00",Lapsed,Monthly
+POL-20220009,PH009,Term Life,2024-01-05,400000,"$205.50",,Annual
+POL-20220010,PH010,Whole Life,2017-08-20,200000,"$2400.00",Active,Quarterly
+POL-20220011,PH011,Term Life,2023-05-12,550000,"$275.00",,Annual
+POL-20220012,PH012,Universal Life,2020-03-08,300000,"$1900.00",Surrendered,Monthly
+POL-20220013,PH013,Term Life,2022-09-01,450000,"$230.00",,Annual
+POL-20220014,PH014,Whole Life,2016-12-15,175000,"$2850.00",Active,Monthly
+POL-20220015,PH015,Term Life,2023-10-20,650000,"$295.00",,Annual
+POL-20220016,PH001,Universal Life,2023-06-01,200000,"$1100.00",Active,Annual
+POL-20220017,PH003,Whole Life,2021-04-15,300000,"$1650.00",,Quarterly
+POL-20220018,PH005,Term Life,2024-02-28,250000,"$175.00",Active,Monthly
+POL-20220019,PH007,Universal Life,2022-08-10,400000,"$1800.00",,Annual
+POL-20220020,PH010,Term Life,2023-01-20,350000,"$580.00",Active,Annual

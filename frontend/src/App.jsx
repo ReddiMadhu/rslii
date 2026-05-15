@@ -5,6 +5,7 @@ import { Sun, Moon, Zap, RotateCcw, LayoutDashboard, GitBranch, Columns3, Refres
 import useAnalysisStore, { APP_STATES } from "./store/useAnalysisStore";
 import UploadZone from "./components/UploadZone";
 import SourceMapper from "./components/SourceMapper";
+import SourceValidation from "./components/SourceValidation";
 import SummaryTab from "./components/SummaryTab";
 import LineageTab from "./components/LineageTab";
 import ColumnLineageTab from "./components/ColumnLineageTab";
@@ -313,6 +314,12 @@ function App() {
         {appState === APP_STATES.SOURCE_MAPPING && (
           <div className="flex-1 flex items-center justify-center">
             <SourceMapper llmAvailable={llmAvailable} />
+          </div>
+        )}
+
+        {appState === APP_STATES.SOURCE_VALIDATION && (
+          <div className="flex-1 flex items-start justify-center py-6 overflow-y-auto w-full">
+            <SourceValidation llmAvailable={llmAvailable} />
           </div>
         )}
 

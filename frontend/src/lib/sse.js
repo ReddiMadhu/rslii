@@ -11,6 +11,7 @@ export function executeWithSSE({
   enableLlm,
   fileMapping,
   filesByFieldName,
+  overrides,
   onNodeStart,
   onNodeComplete,
   onNodeError,
@@ -25,6 +26,9 @@ export function executeWithSSE({
   fd.append("filename", filename || "pipeline.py");
   fd.append("enable_llm", enableLlm ? "true" : "false");
   fd.append("file_mapping", JSON.stringify(fileMapping || {}));
+  if (overrides && Object.keys(overrides).length > 0) {
+    fd.append("overrides", JSON.stringify(overrides));
+  }
   Object.entries(filesByFieldName || {}).forEach(([field, file]) => {
     fd.append(field, file);
   });

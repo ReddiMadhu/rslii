@@ -300,10 +300,8 @@ async def analyze(request: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=f"Parser error: {str(e)}")
 
 
-@app.post("/api/execute")
-async def execute_pipeline(request: Request):
-    """Execute instrumented pipeline; stream SSE then final JSON result."""
-    form = await request.form()
+async def _parse_upload_form(form) -> tuple[str, str, dict, list[dict], bool]:
+    """Shared multipart parsing for validate-sources and execute."""
     code = form.get("code")
     if not code or not isinstance(code, str):
         raise HTTPException(status_code=422, detail="Missing code")
@@ -342,6 +340,78 @@ async def execute_pipeline(request: Request):
         if not ok:
             raise HTTPException(status_code=422, detail=msg)
 
+    return code, filename, file_mapping, sources, enable_llm
+
+
+async def _save_uploads(form, sources: list, file_mapping: dict, uploads_dir: str) -> dict[str, str]:
+    os.makedirs(uploads_dir, exist_ok=True)
+    saved_paths: dict[str, str] = {}
+    for s in sources:
+        if not s.get("requires_upload"):
+            continue
+        sid = s["id"]
+        logical = file_mapping[sid]
+        field = f"file_{logical}"
+        uf = form.get(field)
+        raw = await uf.read()
+        dest = os.path.join(uploads_dir, os.path.basename(str(logical)))
+        with open(dest, "wb") as f:
+            f.write(raw)
+        saved_paths[sid] = dest
+    return saved_paths
+
+
+@app.post("/api/validate-sources")
+async def validate_sources(request: Request):
+    """Validate uploaded source files against pipeline schema and snapshots."""
+    form = await request.form()
+    code, filename, file_mapping, sources, enable_llm = await _parse_upload_form(form)
+
+    temp_dir = tempfile.mkdtemp(prefix="rsli_val_")
+    uploads = os.path.join(temp_dir, "uploads")
+    try:
+        saved_paths = await _save_uploads(form, sources, file_mapping, uploads)
+
+        from parser.ast_parser import ASTParser
+        from validator.source_validator import validate_all_sources
+
+        parser = ASTParser(code)
+        result = parser.parse()
+        nodes = result["nodes"]
+        edges = result["edges"]
+
+        out = await validate_all_sources(
+            code,
+            filename,
+            saved_paths,
+            sources,
+            nodes,
+            edges,
+            enable_llm=enable_llm,
+            file_mapping=file_mapping,
+        )
+        return out
+    finally:
+        try:
+            from executor.runner import cleanup_temp_dir
+
+            cleanup_temp_dir(temp_dir)
+        except Exception:
+            pass
+
+
+@app.post("/api/execute")
+async def execute_pipeline(request: Request):
+    """Execute instrumented pipeline; stream SSE then final JSON result."""
+    form = await request.form()
+    code, filename, file_mapping, sources, enable_llm = await _parse_upload_form(form)
+
+    raw_overrides = form.get("overrides") or "{}"
+    try:
+        overrides = json.loads(raw_overrides) if isinstance(raw_overrides, str) else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="overrides must be valid JSON")
+
     async def event_stream():
         q: queue.Queue = queue.Queue()
         done = object()
@@ -356,19 +426,7 @@ async def execute_pipeline(request: Request):
             uploads = os.path.join(temp_dir, "uploads")
             os.makedirs(uploads, exist_ok=True)
 
-            saved_paths: dict[str, str] = {}
-            for s in sources:
-                if not s.get("requires_upload"):
-                    continue
-                sid = s["id"]
-                logical = file_mapping[sid]
-                field = f"file_{logical}"
-                uf = form.get(field)
-                raw = await uf.read()
-                dest = os.path.join(uploads, os.path.basename(str(logical)))
-                with open(dest, "wb") as f:
-                    f.write(raw)
-                saved_paths[sid] = dest
+            saved_paths = await _save_uploads(form, sources, file_mapping, uploads)
 
             _EXEC_SESSIONS[session_id] = temp_dir
 
@@ -382,6 +440,8 @@ async def execute_pipeline(request: Request):
                         session_id=session_id,
                         temp_dir=temp_dir,
                         sse_callback=sse_cb,
+                        overrides=overrides or None,
+                        pipeline_filename=filename,
                     )
                     result_holder.append(res)
                 except Exception as e:
