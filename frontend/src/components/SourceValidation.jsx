@@ -12,14 +12,18 @@ import ValidationExecuteConfirm from "./ValidationExecuteConfirm";
 import ValidationSidebar from "./ValidationSidebar";
 import ValidationSection from "./ValidationSection";
 import { buildFixSummary, runPipelineExecution } from "../lib/executePipeline";
-import { sectionNeedsAction, showSchemaDriftInsights } from "../lib/validationUtils";
+import {
+  limitKeyFindings,
+  sectionNeedsAction,
+  showSchemaDriftInsights,
+} from "../lib/validationUtils";
 import { useSourceOverrides } from "../store/validationSelectors";
 
 function ValidationFilePanel({ sourceId, data, onSectionSave, sectionSaved }) {
   const overrides = useSourceOverrides(sourceId);
   const mark = (section) => onSectionSave(sourceId, section);
   const showInsights = showSchemaDriftInsights(data);
-  const findings = data.key_findings || [];
+  const findings = limitKeyFindings(data.key_findings);
   const alerts = data.key_alerts || [];
 
   return (

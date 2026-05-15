@@ -1,5 +1,13 @@
 /** Shared validation UI helpers */
 
+/** Max Key Findings rows shown in the validation UI. */
+export const MAX_KEY_FINDINGS = 3;
+
+export function limitKeyFindings(findings, max = MAX_KEY_FINDINGS) {
+  if (!Array.isArray(findings)) return [];
+  return findings.slice(0, max);
+}
+
 /** Show Key Findings / Key Alerts when schema drift includes missing columns or dtype changes. */
 export function showSchemaDriftInsights(data) {
   if (!data) return false;
