@@ -3,6 +3,7 @@ import { ArrowLeft, Play, Loader2 } from "lucide-react";
 import useAnalysisStore, { APP_STATES } from "../store/useAnalysisStore";
 import ValidationKeyFindings from "./ValidationKeyFindings";
 import ValidationKeyAlerts from "./ValidationKeyAlerts";
+import ValidationRowStats from "./ValidationRowStats";
 import ValidationSampleData from "./ValidationSampleData";
 import ValidationAdditionalColumns from "./ValidationAdditionalColumns";
 import ValidationMissingColumns from "./ValidationMissingColumns";
@@ -23,6 +24,11 @@ function ValidationFilePanel({ sourceId, data, onSectionSave, sectionSaved }) {
 
   return (
     <div className="space-y-4 min-w-0">
+      <ValidationRowStats
+        rowCount={data.row_count}
+        columnCount={data.column_count}
+        nullBlankColumns={data.null_blank_columns}
+      />
       {showInsights && findings.length > 0 && (
         <ValidationKeyFindings findings={findings} />
       )}
