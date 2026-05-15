@@ -1,7 +1,6 @@
 import { Sparkles } from "lucide-react";
 
 export default function ValidationKeyFindings({ findings = [] }) {
-  if (!findings.length) return null;
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -21,16 +20,28 @@ export default function ValidationKeyFindings({ findings = [] }) {
             </tr>
           </thead>
           <tbody>
-            {findings.map((f, i) => (
-              <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
-                <td className="px-3 py-2" style={{ color: "var(--text-primary)" }}>
-                  {f.finding}
-                </td>
-                <td className="px-3 py-2" style={{ color: "var(--text-secondary)" }}>
-                  {f.impact}
+            {findings.length === 0 ? (
+              <tr style={{ borderTop: "1px solid var(--border)" }}>
+                <td
+                  colSpan={2}
+                  className="px-3 py-3 text-center"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  —
                 </td>
               </tr>
-            ))}
+            ) : (
+              findings.map((f, i) => (
+                <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
+                  <td className="px-3 py-2" style={{ color: "var(--text-primary)" }}>
+                    {f.finding}
+                  </td>
+                  <td className="px-3 py-2" style={{ color: "var(--text-secondary)" }}>
+                    {f.impact}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

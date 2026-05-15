@@ -26,8 +26,9 @@ def _filter_pipeline_findings(findings: list[dict]) -> list[dict[str, str]]:
 def template_key_findings(
     additional_count: int,
     missing_count: int,
+    dtype_count: int = 0,
 ) -> list[dict[str, str]]:
-    findings = []
+    findings: list[dict[str, str]] = []
     if additional_count:
         findings.append({
             "finding": f"{additional_count} new column(s)",
@@ -38,10 +39,10 @@ def template_key_findings(
             "finding": f"{missing_count} missing column(s) vs expected schema",
             "impact": "Target variables may have NULL values unless mapped before execution",
         })
-    if not findings:
+    if dtype_count:
         findings.append({
-            "finding": "No major schema issues detected",
-            "impact": "Uploaded file aligns with expected schema for this source",
+            "finding": f"{dtype_count} data type change(s) vs expected schema",
+            "impact": "May cause type errors or implicit casts during pipeline execution",
         })
     return findings
 
@@ -116,17 +117,19 @@ async def generate_findings(
     *,
     additional_count: int = 0,
     missing_count: int = 0,
+    dtype_count: int = 0,
     enable_llm: bool = False,
 ) -> tuple[list[dict], list[dict], bool]:
+    template_kf = template_key_findings(additional_count, missing_count, dtype_count)
     kf_llm, ka_llm, used = await llm_findings(profile, code, snapshot, enable_llm)
     if used and kf_llm:
         kf = _filter_pipeline_findings(kf_llm)
         if not kf:
-            kf = template_key_findings(additional_count, missing_count)
+            kf = template_kf
         return kf, ka_llm or template_key_alerts(
             profile.get("columns") or [], profile.get("row_count") or 0
         ), True
 
-    kf = template_key_findings(additional_count, missing_count)
+    kf = template_kf
     ka = template_key_alerts(profile.get("columns") or [], profile.get("row_count") or 0)
     return kf, ka, False

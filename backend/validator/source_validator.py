@@ -238,6 +238,7 @@ async def validate_source_file(
         snapshot,
         additional_count=len(additional),
         missing_count=len(missing_columns),
+        dtype_count=len(dtype_changes),
         enable_llm=enable_llm,
     )
 
