@@ -3,21 +3,19 @@ import { PlusCircle } from "lucide-react";
 export default function ValidationAdditionalColumns({
   columns = [],
   hasPreviousSnapshot,
-  onSave,
-  saved,
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 p-3">
       <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
         <PlusCircle size={14} style={{ color: "#22c55e" }} />
-        Additional Columns
+        New Columns
       </div>
       {!hasPreviousSnapshot ? (
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          No previous snapshot — this will become the baseline.
+          No baseline yet — baseline is created after first successful execution.
         </p>
       ) : columns.length === 0 ? (
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>No additional columns vs previous upload.</p>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>No new columns vs baseline.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
           <table className="min-w-full text-[11px]">
@@ -38,14 +36,6 @@ export default function ValidationAdditionalColumns({
           </table>
         </div>
       )}
-      <button
-        type="button"
-        onClick={onSave}
-        className="text-xs px-3 py-1.5 rounded-lg font-medium"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--primary)" }}
-      >
-        {saved ? "Saved" : "Save"}
-      </button>
     </div>
   );
 }

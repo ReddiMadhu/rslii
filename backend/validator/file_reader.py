@@ -20,34 +20,33 @@ def read_limit() -> int:
 
 def read_source_dataframe(file_path: str, fmt: str) -> pd.DataFrame:
     """Read up to ``read_limit()`` rows from a source file."""
+    from .csv_export import sanitize_dataframe
+
     nrows = read_limit()
     fmt = (fmt or "csv").lower()
     if fmt == "csv":
-        return pd.read_csv(file_path, nrows=nrows)
-    if fmt == "parquet":
-        df = pd.read_parquet(file_path)
-        return df.head(nrows)
-    if fmt == "excel":
-        return pd.read_excel(file_path, nrows=nrows)
-    if fmt == "json":
-        return pd.read_json(file_path)
-    if fmt == "html":
+        df = pd.read_csv(file_path, nrows=nrows)
+    elif fmt == "parquet":
+        df = pd.read_parquet(file_path).head(nrows)
+    elif fmt == "excel":
+        df = pd.read_excel(file_path, nrows=nrows)
+    elif fmt == "json":
+        df = pd.read_json(file_path).head(nrows)
+    elif fmt == "html":
         tables = pd.read_html(file_path)
-        if not tables:
-            return pd.DataFrame()
-        return tables[0].head(nrows)
-    if fmt == "feather":
-        df = pd.read_feather(file_path)
-        return df.head(nrows)
-    if fmt == "orc":
-        df = pd.read_orc(file_path)
-        return df.head(nrows)
-    if fmt == "stata":
-        return pd.read_stata(file_path)
-    if fmt == "pickle":
+        df = tables[0].head(nrows) if tables else pd.DataFrame()
+    elif fmt == "feather":
+        df = pd.read_feather(file_path).head(nrows)
+    elif fmt == "orc":
+        df = pd.read_orc(file_path).head(nrows)
+    elif fmt == "stata":
+        df = pd.read_stata(file_path)
+    elif fmt == "pickle":
         df = pd.read_pickle(file_path)
-        return df.head(nrows) if hasattr(df, "head") else df
-    return pd.read_csv(file_path, nrows=nrows)
+        df = df.head(nrows) if hasattr(df, "head") else df
+    else:
+        df = pd.read_csv(file_path, nrows=nrows)
+    return sanitize_dataframe(df)
 
 
 def dtype_label(dtype: Any) -> str:

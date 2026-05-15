@@ -112,6 +112,24 @@ def execute_pipeline_sync(
         ctx.mark_current_failed(f"{type(e).__name__}: {e}")
         ctx.mark_remaining_not_reached()
 
+    if os.path.isdir(output_dir):
+        try:
+            from validator.csv_export import prepare_dataframe_for_csv
+
+            import pandas as pd
+
+            for name in sorted(os.listdir(output_dir)):
+                fp = os.path.join(output_dir, name)
+                if not os.path.isfile(fp) or not name.lower().endswith(".csv"):
+                    continue
+                try:
+                    out_df = pd.read_csv(fp)
+                    prepare_dataframe_for_csv(out_df).to_csv(fp, index=False)
+                except Exception:
+                    pass
+        except ImportError:
+            pass
+
     out_files = []
     if os.path.isdir(output_dir):
         for name in sorted(os.listdir(output_dir)):

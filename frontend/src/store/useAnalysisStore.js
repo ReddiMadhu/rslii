@@ -94,7 +94,19 @@ const useAnalysisStore = create((set) => ({
       const cur = s.validationOverrides[sourceId] || {
         column_renames: {},
         dtype_casts: {},
+        null_columns: [],
       };
+      if (type === "null") {
+        const set = new Set(cur.null_columns || []);
+        if (value) set.add(key);
+        else set.delete(key);
+        return {
+          validationOverrides: {
+            ...s.validationOverrides,
+            [sourceId]: { ...cur, null_columns: [...set] },
+          },
+        };
+      }
       const bucket = type === "dtype" ? "dtype_casts" : "column_renames";
       const nextBucket = { ...cur[bucket] };
       if (value == null || value === "") {

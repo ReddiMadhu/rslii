@@ -1,0 +1,106 @@
+{
+  "key": "life_insurance_etl.py::node_1",
+  "columns": [
+    {
+      "name": "policyholder_id",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    },
+    {
+      "name": "full_name",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    },
+    {
+      "name": "date_of_birth",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    },
+    {
+      "name": "gender",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    },
+    {
+      "name": "region",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    },
+    {
+      "name": "smoker_status",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    },
+    {
+      "name": "risk_class",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    },
+    {
+      "name": "agent_notes",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 15
+    }
+  ],
+  "row_count": 15,
+  "column_count": 8,
+  "column_lineage": {
+    "policyholder_id": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "full_name": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "date_of_birth": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "gender": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "region": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "smoker_status": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "risk_class": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "agent_notes": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    }
+  },
+  "timestamp": "2026-05-15T13:10:15.629893+00:00"
+}

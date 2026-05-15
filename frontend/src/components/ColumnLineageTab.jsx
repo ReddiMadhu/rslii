@@ -48,6 +48,11 @@ function ColumnTraceNodeComponent({ data }) {
     d.status === "failed";
   const isFailed = d.status === "failed";
 
+  // Prefer column-specific journey summary; fall back to pipeline operation description
+  const narrativeText = (d.journeySummary || d.description || "").trim();
+  const narrativeSource = d.journeySummary ? d.journeySummarySource : d.descriptionSource;
+  const narrativeIsAi = narrativeSource === "llm";
+
   return (
     <div
       className="column-trace-node"
@@ -56,7 +61,6 @@ function ColumnTraceNodeComponent({ data }) {
         borderStyle: isTerminal ? "dashed" : "solid",
         opacity: isFailed ? 0.8 : 1,
       }}
-      onClick={() => setExpanded(!expanded)}
     >
       {/* Header */}
       <div className="ctn-header">
@@ -88,6 +92,16 @@ function ColumnTraceNodeComponent({ data }) {
           {d.nullCount > 0 && (
             <span style={{ color: "#eab308" }}>⚠ {d.nullCount} nulls</span>
           )}
+        </div>
+      )}
+
+      {narrativeText && (
+        <div className="ctn-description">
+          <div className="ctn-description-header">
+            {narrativeIsAi && <Sparkles size={11} style={{ color: "#a855f7" }} />}
+            {narrativeIsAi && <span className="ctn-ai-badge">AI</span>}
+          </div>
+          <p className="ctn-description-text">{narrativeText}</p>
         </div>
       )}
 
@@ -141,30 +155,6 @@ function ColumnTraceNodeComponent({ data }) {
               </div>
             </div>
           )}
-          {d.description && (
-            <div className="ctn-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: "4px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span className="ctn-label">Description</span>
-                {d.descriptionSource === "llm" && (
-                  <span
-                    style={{
-                      fontSize: "9px",
-                      fontWeight: 600,
-                      padding: "2px 6px",
-                      borderRadius: "9999px",
-                      background: "rgba(168, 85, 247, 0.15)",
-                      color: "#a855f7",
-                    }}
-                  >
-                    AI
-                  </span>
-                )}
-              </div>
-              <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                {d.description}
-              </span>
-            </div>
-          )}
           {d.code && (
             <div className="ctn-code">
               <code>{d.code}</code>
@@ -194,29 +184,16 @@ function ColumnTraceNodeComponent({ data }) {
         </div>
       )}
 
-      {/* Per-node AI / template summary */}
-      {d.journeySummary && (
-        <div className="ctn-ai-summary">
-          <div className="ctn-ai-summary-header">
-            <Sparkles size={11} style={{ color: d.journeySummarySource === "llm" ? "#a855f7" : "#fb4e0b" }} />
-            {d.journeySummarySource === "llm" && (
-              <span className="ctn-ai-badge">AI</span>
-            )}
-          </div>
-          <span className="ctn-ai-summary-text">{d.journeySummary}</span>
-        </div>
-      )}
-      {d.journeySummaryLoading && !d.journeySummary && (
-        <div className="ctn-ai-summary ctn-ai-summary-loading">
-          <Loader2 size={12} className="ctn-spinner" />
-          <span className="ctn-ai-summary-text" style={{ opacity: 0.5 }}>Generating summary...</span>
-        </div>
-      )}
-
       {/* Expand indicator */}
-      <div className="ctn-expand-hint">
+      <button
+        type="button"
+        className="ctn-expand-hint"
+        onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
+        aria-label={expanded ? "Collapse details" : "Expand details"}
+      >
         {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-      </div>
+      </button>
 
       {/* Handles */}
       <Handle 
@@ -339,13 +316,29 @@ export default function ColumnLineageTab({ result }) {
     setJourneySummaryData(null);
   }, [selectedCol, direction, result]);
 
+  // Show loading as soon as a column is selected (until summaries are ready)
+  useEffect(() => {
+    if (!selectedCol) {
+      setJourneySummaryLoading(false);
+      return;
+    }
+    const cacheKey = `${selectedCol}:${direction}`;
+    if (!journeySummaryCache.current[cacheKey]) {
+      setJourneySummaryLoading(true);
+    }
+  }, [selectedCol, direction]);
+
   // Fetch GenAI / template journey summaries after trace is computed
   useEffect(() => {
-    if (!columnTraceData?.traceNodes?.length || !selectedCol) return;
+    if (!columnTraceData?.traceNodes?.length || !selectedCol) {
+      if (!columnTraceData?.traceNodes?.length) setJourneySummaryLoading(false);
+      return;
+    }
 
     const cacheKey = `${selectedCol}:${direction}`;
     if (journeySummaryCache.current[cacheKey]) {
       setJourneySummaryData(journeySummaryCache.current[cacheKey]);
+      setJourneySummaryLoading(false);
       return;
     }
 
@@ -381,9 +374,14 @@ export default function ColumnLineageTab({ result }) {
     return () => { cancelled = true; };
   }, [columnTraceData, selectedCol, direction, pipelineCode]);
 
-  // Build ReactFlow nodes and edges from trace data
+  const hasTraceNodes = (columnTraceData?.traceNodes?.length ?? 0) > 0;
+  const showSummaryLoading = Boolean(selectedCol && hasTraceNodes && journeySummaryLoading);
+
+  // Build ReactFlow nodes and edges from trace data (after summaries are ready)
   const { flowNodes, flowEdges } = useMemo(() => {
-    if (!columnTraceData?.traceNodes?.length) return { flowNodes: [], flowEdges: [] };
+    if (!columnTraceData?.traceNodes?.length || journeySummaryLoading) {
+      return { flowNodes: [], flowEdges: [] };
+    }
 
     const nodeSummaries = journeySummaryData?.node_summaries || {};
     const summarySource = journeySummaryData?.llm_used ? "llm" : "template";
@@ -391,13 +389,12 @@ export default function ColumnLineageTab({ result }) {
     const fNodes = columnTraceData.traceNodes.map((tn, i) => ({
       id: tn.id,
       type: "columnTrace",
-      position: { x: 60, y: i * 220 },
+      position: { x: 60, y: i * 280 },
       data: {
         ...tn,
         direction,
         journeySummary: nodeSummaries[tn.id] || "",
         journeySummarySource: summarySource,
-        journeySummaryLoading: journeySummaryLoading,
       },
       sourcePosition: direction === "upstream" ? Position.Top : Position.Bottom,
       targetPosition: direction === "upstream" ? Position.Bottom : Position.Top,
@@ -416,7 +413,7 @@ export default function ColumnLineageTab({ result }) {
           strokeWidth: style.strokeWidth || 1,
           strokeDasharray: style.strokeDasharray || undefined,
         },
-        labelStyle: { fill: style.stroke, fontSize: 10, fontWeight: 600 },
+        labelStyle: { fill: style.stroke, fontSize: 13, fontWeight: 600 },
         labelBgStyle: { fill: "var(--bg-card)", stroke: style.stroke, strokeWidth: 0.5 },
         animated: te.type === "derived",
       };
@@ -427,11 +424,46 @@ export default function ColumnLineageTab({ result }) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges);
+  const flowRef = useRef(null);
+
+  const fitColumnTraceView = useCallback(() => {
+    const rf = flowRef.current;
+    if (!rf) return;
+    rf.fitView({
+      padding: 0.18,
+      duration: 200,
+      minZoom: 0.86,
+      maxZoom: 1.26,
+    });
+    const vp = rf.getViewport();
+    rf.setViewport(
+      {
+        x: vp.x,
+        y: vp.y,
+        zoom: Math.min(vp.zoom * 1.2, 1.75),
+      },
+      { duration: 200 }
+    );
+  }, []);
+
+  const onFlowInit = useCallback(
+    (instance) => {
+      flowRef.current = instance;
+      fitColumnTraceView();
+    },
+    [fitColumnTraceView]
+  );
 
   useEffect(() => {
     setNodes(flowNodes);
     setEdges(flowEdges);
   }, [flowNodes, flowEdges]);
+
+  useEffect(() => {
+    if (!flowNodes.length) return;
+    const t = window.setTimeout(fitColumnTraceView, 80);
+    return () => window.clearTimeout(t);
+  }, [flowNodes.length, flowEdges.length, fitColumnTraceView]);
 
   // Filter columns for search
   const filteredSource = useMemo(() => {
@@ -559,46 +591,53 @@ export default function ColumnLineageTab({ result }) {
       {/* Trace result */}
       {selectedCol && columnTraceData && (
         <div className="clt-trace-container">
-          {/* Journey summary */}
-          <JourneySummary
-            summary={columnTraceData.summary}
-            overallSummary={journeySummaryData?.overall_summary}
-            llmUsed={journeySummaryData?.llm_used}
-            isLoading={journeySummaryLoading}
-          />
-
-          {/* Trace graph */}
-          {columnTraceData.traceNodes.length > 0 ? (
-            <div className="clt-graph" style={{ height: Math.max(400, columnTraceData.traceNodes.length * 220 + 80) }}>
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                fitView
-                fitViewOptions={{ padding: 0.3 }}
-                proOptions={{ hideAttribution: true }}
-                minZoom={0.3}
-                maxZoom={1.5}
-              >
-                <Background color="var(--text-muted)" gap={20} size={0.5} style={{ opacity: 0.15 }} />
-                <Controls
-                  showInteractive={false}
-                  style={{
-                    background: "var(--bg-card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                  }}
-                />
-              </ReactFlow>
+          {showSummaryLoading ? (
+            <div className="clt-summary-loading">
+              <Loader2 size={32} className="ctn-spinner" />
+              <p>Generating AI column journey summaries...</p>
             </div>
           ) : (
-            <div className="clt-no-trace">
-              <AlertTriangle size={20} style={{ color: "#eab308" }} />
-              <p>Column "{selectedCol}" was not found in the execution trace</p>
-              <p className="clt-empty-sub">This column may not have been referenced during execution</p>
-            </div>
+            <>
+              <JourneySummary
+                summary={columnTraceData.summary}
+                overallSummary={journeySummaryData?.overall_summary}
+                llmUsed={journeySummaryData?.llm_used}
+                isLoading={false}
+              />
+
+              {hasTraceNodes ? (
+                <div className="clt-graph">
+                  <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    nodeTypes={nodeTypes}
+                    onInit={onFlowInit}
+                    proOptions={{ hideAttribution: true }}
+                    minZoom={0.4}
+                    maxZoom={1.75}
+                    nodesConnectable={false}
+                  >
+                    <Background color="var(--text-muted)" gap={20} size={0.5} style={{ opacity: 0.15 }} />
+                    <Controls
+                      showInteractive={false}
+                      style={{
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                      }}
+                    />
+                  </ReactFlow>
+                </div>
+              ) : (
+                <div className="clt-no-trace">
+                  <AlertTriangle size={20} style={{ color: "#eab308" }} />
+                  <p>Column "{selectedCol}" was not found in the execution trace</p>
+                  <p className="clt-empty-sub">This column may not have been referenced during execution</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

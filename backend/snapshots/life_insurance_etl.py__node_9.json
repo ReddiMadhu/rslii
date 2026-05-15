@@ -1,0 +1,94 @@
+{
+  "key": "life_insurance_etl.py::node_9",
+  "columns": [
+    {
+      "name": "claim_id",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 8
+    },
+    {
+      "name": "policy_number",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 8
+    },
+    {
+      "name": "claim_date",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 8
+    },
+    {
+      "name": "claim_type",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 8
+    },
+    {
+      "name": "claim_subtype",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 8
+    },
+    {
+      "name": "claim_amount",
+      "dtype": "numeric",
+      "null_count": 0,
+      "total_rows": 8
+    },
+    {
+      "name": "claim_status",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 8
+    }
+  ],
+  "row_count": 8,
+  "column_count": 7,
+  "column_lineage": {
+    "claim_id": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "policy_number": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "claim_date": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "claim_type": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "claim_subtype": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "claim_amount": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "float64",
+      "null_count": 0
+    },
+    "claim_status": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    }
+  },
+  "timestamp": "2026-05-15T13:10:15.673705+00:00"
+}

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { ArrowLeft, Play, Loader2, FileCheck } from "lucide-react";
+import { ArrowLeft, Play, Loader2 } from "lucide-react";
 import useAnalysisStore, { APP_STATES } from "../store/useAnalysisStore";
 import ValidationKeyFindings from "./ValidationKeyFindings";
 import ValidationKeyAlerts from "./ValidationKeyAlerts";
@@ -9,44 +9,37 @@ import ValidationAdditionalColumns from "./ValidationAdditionalColumns";
 import ValidationMissingColumns from "./ValidationMissingColumns";
 import ValidationDtypeChanges from "./ValidationDtypeChanges";
 import ValidationExecuteConfirm from "./ValidationExecuteConfirm";
+import ValidationSidebar from "./ValidationSidebar";
+import ValidationSection from "./ValidationSection";
 import { buildFixSummary, runPipelineExecution } from "../lib/executePipeline";
+import { sectionNeedsAction } from "../lib/validationUtils";
+import { useSourceOverrides } from "../store/validationSelectors";
 
-function FileSection({ sourceId, data, onSectionSave, sectionSaved }) {
+function ValidationFilePanel({ sourceId, data, onSectionSave, sectionSaved }) {
+  const overrides = useSourceOverrides(sourceId);
   const mark = (section) => onSectionSave(sourceId, section);
 
   return (
-    <details
-      open
-      className="rounded-2xl overflow-hidden mb-4"
-      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-    >
-      <summary
-        className="cursor-pointer px-4 py-3 text-sm font-bold flex items-center gap-2 list-none"
-        style={{ color: "var(--text-primary)" }}
-      >
-        <FileCheck size={16} style={{ color: "var(--primary)" }} />
-        {data.filename || sourceId}
-        {data.llm_used && (
-          <span className="text-[10px] font-normal px-2 py-0.5 rounded-full" style={{ background: "rgba(168,85,247,0.15)", color: "#a855f7" }}>
-            AI
-          </span>
-        )}
-      </summary>
-      <div className="px-4 pb-4 space-y-5">
-        <ValidationKeyFindings findings={data.key_findings} />
-        <ValidationRowStats
-          rowCount={data.row_count}
-          columnCount={data.column_count}
-          nullBlankColumns={data.null_blank_columns}
-        />
-        <ValidationSampleData sampleData={data.sample_data} columns={data.columns} />
+    <div className="space-y-4 min-w-0">
+      <ValidationKeyFindings findings={data.key_findings} />
+      <ValidationRowStats
+        rowCount={data.row_count}
+        columnCount={data.column_count}
+        nullBlankColumns={data.null_blank_columns}
+      />
+      <ValidationSampleData sampleData={data.sample_data} columns={data.columns} />
+      {(data.key_alerts || []).length > 0 && (
         <ValidationKeyAlerts alerts={data.key_alerts} />
+      )}
+
+      <ValidationSection needsAction={sectionNeedsAction("additional", data, overrides)}>
         <ValidationAdditionalColumns
           columns={data.additional_columns}
           hasPreviousSnapshot={data.has_previous_snapshot}
-          onSave={() => mark("additional")}
-          saved={sectionSaved[`${sourceId}:additional`]}
         />
+      </ValidationSection>
+
+      <ValidationSection needsAction={sectionNeedsAction("missing", data, overrides)}>
         <ValidationMissingColumns
           sourceId={sourceId}
           rows={data.missing_columns}
@@ -56,6 +49,9 @@ function FileSection({ sourceId, data, onSectionSave, sectionSaved }) {
           onSave={() => mark("missing")}
           saved={sectionSaved[`${sourceId}:missing`]}
         />
+      </ValidationSection>
+
+      <ValidationSection needsAction={sectionNeedsAction("dtype", data, overrides)}>
         <ValidationDtypeChanges
           sourceId={sourceId}
           changes={data.dtype_changes}
@@ -63,8 +59,8 @@ function FileSection({ sourceId, data, onSectionSave, sectionSaved }) {
           onSave={() => mark("dtype")}
           saved={sectionSaved[`${sourceId}:dtype`]}
         />
-      </div>
-    </details>
+      </ValidationSection>
+    </div>
   );
 }
 
@@ -95,6 +91,17 @@ export default function SourceValidation({ llmAvailable = false }) {
     const files = validationResult?.files || {};
     return Object.entries(files);
   }, [validationResult]);
+
+  const [selectedSourceId, setSelectedSourceId] = useState(null);
+
+  const activeSourceId = useMemo(() => {
+    if (selectedSourceId && validationResult?.files?.[selectedSourceId]) {
+      return selectedSourceId;
+    }
+    return fileEntries[0]?.[0] ?? null;
+  }, [selectedSourceId, validationResult, fileEntries]);
+
+  const selectedData = activeSourceId ? validationResult?.files?.[activeSourceId] : null;
 
   const fixSummary = useMemo(
     () => buildFixSummary(validationOverrides, validationResult),
@@ -134,7 +141,7 @@ export default function SourceValidation({ llmAvailable = false }) {
 
   if (validationLoading) {
     return (
-      <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-24 gap-4 animate-fade-in">
+      <div className="w-full max-w-6xl mx-auto flex flex-col items-center justify-center py-24 gap-4 animate-fade-in">
         <Loader2 size={32} className="animate-spin" style={{ color: "var(--primary)" }} />
         <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
           Analyzing source data…
@@ -157,22 +164,39 @@ export default function SourceValidation({ llmAvailable = false }) {
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in pb-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-          Source Validation
-        </h2>
-      </div>
+    <div className="w-full max-w-6xl mx-auto space-y-6 animate-fade-in pb-8">
+      <h2 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
+        Source Validation
+      </h2>
 
-      {fileEntries.map(([sourceId, data]) => (
-        <FileSection
-          key={sourceId}
-          sourceId={sourceId}
-          data={data}
-          onSectionSave={markValidationSectionSaved}
-          sectionSaved={validationSectionSaved}
+      <div className="flex gap-6 items-start">
+        <ValidationSidebar
+          fileEntries={fileEntries}
+          selectedSourceId={activeSourceId}
+          onSelectSource={setSelectedSourceId}
+          overrides={validationOverrides}
         />
-      ))}
+
+        <main
+          className="flex-1 min-w-0 rounded-2xl overflow-visible"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          {activeSourceId && selectedData ? (
+            <div className="p-5">
+            <ValidationFilePanel
+              sourceId={activeSourceId}
+              data={selectedData}
+              onSectionSave={markValidationSectionSaved}
+              sectionSaved={validationSectionSaved}
+            />
+            </div>
+          ) : (
+            <p className="p-6 text-sm" style={{ color: "var(--text-muted)" }}>
+              Select a file from the sidebar.
+            </p>
+          )}
+        </main>
+      </div>
 
       <div className="flex items-center justify-between pt-2">
         <button

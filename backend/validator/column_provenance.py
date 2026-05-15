@@ -15,6 +15,7 @@ class ProvenanceResult:
     required_in_upload: set[str] = field(default_factory=set)
     derived_columns: set[str] = field(default_factory=set)
     derived_dependencies: dict[str, list[str]] = field(default_factory=dict)
+    column_line_numbers: dict[str, int] = field(default_factory=dict)
 
 
 def required_columns_for_source(
@@ -163,10 +164,30 @@ def required_columns_for_source(
     for col in required_logical:
         required_in_upload.add(rename_new_to_old.get(col, col))
 
+    column_line_numbers: dict[str, int] = {}
+    source_line = node_by_id.get(target_source_node_id, {}).get("line_number")
+    for col in required_in_upload:
+        origin_nid = column_origin.get(col) or column_origin.get(
+            rename_new_to_old.get(col, col), ""
+        )
+        if origin_nid == target_source_node_id and source_line:
+            column_line_numbers[col] = int(source_line)
+            continue
+        for n in nodes:
+            refs = list(n.get("schema_refs") or []) + _refs_from_code(n.get("code") or "")
+            if col in refs or rename_new_to_old.get(col, col) in refs:
+                ln = n.get("line_number")
+                if ln:
+                    column_line_numbers[col] = int(ln)
+                    break
+        if col not in column_line_numbers and source_line:
+            column_line_numbers[col] = int(source_line)
+
     return ProvenanceResult(
         required_in_upload=required_in_upload,
         derived_columns=derived,
         derived_dependencies=derived_deps,
+        column_line_numbers=column_line_numbers,
     )
 
 

@@ -6,27 +6,31 @@ import json
 import re
 from typing import Any, Optional
 
+# Drop findings that only describe nulls or dtypes (not pipeline/schema drift).
+_NON_PIPELINE_FINDING = re.compile(
+    r"null|blank|dtype|data\s*type|entirely\s+empty|fully\s+null",
+    re.IGNORECASE,
+)
+
+
+def _filter_pipeline_findings(findings: list[dict]) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    for f in findings:
+        text = f"{f.get('finding', '')} {f.get('impact', '')}"
+        if _NON_PIPELINE_FINDING.search(text):
+            continue
+        out.append({"finding": str(f.get("finding", "")), "impact": str(f.get("impact", ""))})
+    return out
+
 
 def template_key_findings(
-    null_blank_columns: int,
     additional_count: int,
     missing_count: int,
-    column_lineage: Optional[dict] = None,
 ) -> list[dict[str, str]]:
     findings = []
-    if null_blank_columns:
-        impact = "Downstream targets may receive NULL values for affected columns"
-        if column_lineage:
-            targets = _lineage_null_targets(column_lineage, null_blank_columns)
-            if targets:
-                impact = f"Target columns may be affected: {', '.join(targets[:5])}"
-        findings.append({
-            "finding": f"{null_blank_columns} NULL/blank column(s)",
-            "impact": impact,
-        })
     if additional_count:
         findings.append({
-            "finding": f"{additional_count} additional column(s)",
+            "finding": f"{additional_count} new column(s)",
             "impact": "Will not be reflected in target unless mapped in pipeline code",
         })
     if missing_count:
@@ -62,17 +66,6 @@ def template_key_alerts(columns: list[dict], row_count: int = 0) -> list[dict[st
     return alerts
 
 
-def _lineage_null_targets(lineage: dict, _count: int) -> list[str]:
-    out = []
-    for _nid, info in (lineage or {}).items():
-        if isinstance(info, dict):
-            for col in info.get("columns") or []:
-                name = col.get("name") if isinstance(col, dict) else col
-                if name:
-                    out.append(str(name))
-    return list(dict.fromkeys(out))[:8]
-
-
 async def llm_findings(
     profile: dict,
     code: str,
@@ -90,12 +83,15 @@ async def llm_findings(
     if llm is None:
         return [], [], False
 
-    prompt = f"""Analyze this ETL source upload for schema drift and data quality.
+    prompt = f"""Analyze this ETL source upload for schema drift affecting the pipeline.
 
-File profile: {json.dumps({k: profile.get(k) for k in ('row_count', 'column_count', 'null_blank_columns', 'columns')}, default=str)[:3000]}
+File profile: {json.dumps({k: profile.get(k) for k in ('row_count', 'column_count', 'columns')}, default=str)[:3000]}
 Has previous snapshot: {snapshot is not None}
 Pipeline code snippet:
 {code[:2500]}
+
+Focus only on missing columns, new/unexpected columns, and schema drift that breaks ETL or downstream targets.
+Do NOT report null counts, blank columns, or data type labels as key findings.
 
 Return JSON: {{"key_findings": [{{"finding": "", "impact": ""}}], "key_alerts": [{{"observation": "", "impact": ""}}]}}"""
 
@@ -124,15 +120,13 @@ async def generate_findings(
 ) -> tuple[list[dict], list[dict], bool]:
     kf_llm, ka_llm, used = await llm_findings(profile, code, snapshot, enable_llm)
     if used and kf_llm:
-        return kf_llm, ka_llm or template_key_alerts(
+        kf = _filter_pipeline_findings(kf_llm)
+        if not kf:
+            kf = template_key_findings(additional_count, missing_count)
+        return kf, ka_llm or template_key_alerts(
             profile.get("columns") or [], profile.get("row_count") or 0
         ), True
 
-    kf = template_key_findings(
-        profile.get("null_blank_columns") or 0,
-        additional_count,
-        missing_count,
-        (snapshot or {}).get("column_lineage"),
-    )
+    kf = template_key_findings(additional_count, missing_count)
     ka = template_key_alerts(profile.get("columns") or [], profile.get("row_count") or 0)
     return kf, ka, False

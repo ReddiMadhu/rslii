@@ -15,18 +15,20 @@ export default function ValidationDtypeChanges({
   const casts = overrides.dtype_casts;
   const setValidationOverride = useAnalysisStore((s) => s.setValidationOverride);
 
+  const showSave = hasPreviousSnapshot && changes.length > 0;
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 p-3">
       <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
         <ArrowRightLeft size={14} style={{ color: "#a855f7" }} />
         Data Type Changes
       </div>
       {!hasPreviousSnapshot ? (
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          No previous snapshot — this will become the baseline.
+          No baseline yet — baseline is created after first successful execution.
         </p>
       ) : changes.length === 0 ? (
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>No dtype changes vs previous upload.</p>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>No dtype changes vs baseline.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
           <table className="min-w-full text-[11px]">
@@ -47,8 +49,12 @@ export default function ValidationDtypeChanges({
                   <td className="px-3 py-2" style={{ color: "var(--text-secondary)" }}>{ch.new_dtype}</td>
                   <td className="px-3 py-2">
                     <select
-                      className="text-[10px] rounded px-1 py-0.5"
-                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                      className="text-sm rounded-lg px-3 py-2 min-w-[140px]"
+                      style={{
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-primary)",
+                      }}
                       value={casts[ch.column] || ch.expected_dtype}
                       onChange={(e) =>
                         setValidationOverride(sourceId, "dtype", ch.column, e.target.value)
@@ -70,14 +76,16 @@ export default function ValidationDtypeChanges({
           </table>
         </div>
       )}
-      <button
-        type="button"
-        onClick={onSave}
-        className="text-xs px-3 py-1.5 rounded-lg font-medium"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--primary)" }}
-      >
-        {saved ? "Saved" : "Save"}
-      </button>
+      {showSave && (
+        <button
+          type="button"
+          onClick={onSave}
+          className="text-xs px-3 py-1.5 rounded-lg font-medium"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--primary)" }}
+        >
+          {saved ? "Saved" : "Save"}
+        </button>
+      )}
     </div>
   );
 }

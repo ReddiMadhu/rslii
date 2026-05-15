@@ -1,0 +1,106 @@
+{
+  "key": "life_insurance_etl.py::node_2",
+  "columns": [
+    {
+      "name": "policy_number",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 20
+    },
+    {
+      "name": "policyholder_id",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 20
+    },
+    {
+      "name": "product_type",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 20
+    },
+    {
+      "name": "effective_date",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 20
+    },
+    {
+      "name": "face_amount",
+      "dtype": "numeric",
+      "null_count": 0,
+      "total_rows": 20
+    },
+    {
+      "name": "annual_premium",
+      "dtype": "numeric",
+      "null_count": 0,
+      "total_rows": 20
+    },
+    {
+      "name": "status",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 20
+    },
+    {
+      "name": "premium_frequency",
+      "dtype": "str",
+      "null_count": 0,
+      "total_rows": 20
+    }
+  ],
+  "row_count": 20,
+  "column_count": 8,
+  "column_lineage": {
+    "policy_number": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "policyholder_id": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "product_type": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "effective_date": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "face_amount": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "int64",
+      "null_count": 0
+    },
+    "annual_premium": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "float64",
+      "null_count": 0
+    },
+    "status": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    },
+    "premium_frequency": {
+      "state": "introduced",
+      "from": [],
+      "dtype": "str",
+      "null_count": 0
+    }
+  },
+  "timestamp": "2026-05-15T13:10:15.651969+00:00"
+}

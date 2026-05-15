@@ -31,6 +31,9 @@ class SnapshotStore:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
+    def exists(self, key: str) -> bool:
+        return os.path.isfile(self._path_for_key(key))
+
     def load(self, key: str) -> Optional[dict[str, Any]]:
         path = self._path_for_key(key)
         if not os.path.isfile(path):

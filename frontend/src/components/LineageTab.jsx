@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect } from "react";
+import { useMemo, useCallback, useEffect, useRef } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -455,6 +455,41 @@ export default function LineageTab({ result }) {
     setEdges(flowEdges);
   }, [flowEdges, setEdges]);
 
+  const flowRef = useRef(null);
+
+  const fitPipelineView = useCallback(() => {
+    const rf = flowRef.current;
+    if (!rf) return;
+    rf.fitView({
+      padding: 0.18,
+      duration: 200,
+      minZoom: 0.86,
+      maxZoom: 1.26,
+    });
+    const vp = rf.getViewport();
+    rf.setViewport(
+      {
+        x: vp.x,
+        y: vp.y,
+        zoom: Math.min(vp.zoom * 1.2, 1.75),
+      },
+      { duration: 200 }
+    );
+  }, []);
+
+  const onFlowInit = useCallback(
+    (instance) => {
+      flowRef.current = instance;
+      fitPipelineView();
+    },
+    [fitPipelineView]
+  );
+
+  useEffect(() => {
+    const t = window.setTimeout(fitPipelineView, 80);
+    return () => window.clearTimeout(t);
+  }, [flowNodes.length, flowEdges.length, fitPipelineView]);
+
   return (
     <div
       className="w-full rounded-xl overflow-hidden relative"
@@ -486,10 +521,9 @@ export default function LineageTab({ result }) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.3 }}
-        minZoom={0.3}
-        maxZoom={1.5}
+        onInit={onFlowInit}
+        minZoom={0.4}
+        maxZoom={1.75}
         proOptions={{ hideAttribution: true }}
         nodesConnectable={false}
       >

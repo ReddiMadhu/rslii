@@ -22,6 +22,7 @@ _RENAME_TOKEN_PAIRS = (
     ("face", "coverage"),
     ("amount", "value"),
     ("status", "usage"),
+    ("claim", "reported"),
 )
 
 
@@ -36,6 +37,10 @@ def _semantic_rename_score(expected_name: str, candidate: str) -> float:
     for a, b in _RENAME_TOKEN_PAIRS:
         if (a in exp_t and b in cand_t) or (b in exp_t and a in cand_t):
             score = max(score, 0.55 + 0.15 * len(exp_t & cand_t))
+    # claim_date ↔ reported_date — same semantic date field
+    if "date" in exp_t and "date" in cand_t:
+        if ("claim" in exp_t and "reported" in cand_t) or ("reported" in exp_t and "claim" in cand_t):
+            score = max(score, 0.88)
     return min(score, 0.92)
 
 

@@ -105,6 +105,43 @@ def _collect_missing_column_names(
     return missing
 
 
+def _pipeline_line_for_column(
+    col: str,
+    provenance_line_numbers: dict[str, int],
+    nodes: list[dict],
+    source_node_id: str,
+) -> Optional[int]:
+    if col in provenance_line_numbers:
+        return provenance_line_numbers[col]
+    node_by_id = {n["id"]: n for n in nodes}
+    src = node_by_id.get(source_node_id, {})
+    if src.get("line_number"):
+        return int(src["line_number"])
+    for n in nodes:
+        refs = list(n.get("schema_refs") or [])
+        if col in refs and n.get("line_number"):
+            return int(n["line_number"])
+    return None
+
+
+def _impact_for_missing_column(expected: str, mapped_col: Optional[str]) -> str:
+    base = (
+        "If claim_date in the target dataset is not mapped correctly, it may result in "
+        "null values in the target table. Mapping is required to avoid downstream data quality issues."
+    )
+    if expected == "claim_date" or expected.endswith("_claim_date"):
+        if mapped_col:
+            return (
+                f"{base} Map uploaded column '{mapped_col}' to '{expected}' before execution."
+            )
+        return base
+    if mapped_col:
+        return (
+            f"'{expected}' will have NULL values unless mapped to '{mapped_col}'."
+        )
+    return f"'{expected}' will have NULL values in downstream steps."
+
+
 async def validate_source_file(
     file_path: str,
     fmt: str,
@@ -141,6 +178,7 @@ async def validate_source_file(
         all_upload_columns_by_node=all_upload_columns_by_node,
     )
     expected_in_upload = provenance.required_in_upload
+    column_line_numbers = provenance.column_line_numbers
 
     missing_columns_raw = _collect_missing_column_names(
         expected_in_upload,
@@ -174,22 +212,23 @@ async def validate_source_file(
         mapped_dtype = current_dtypes.get(mapped_col, "unknown") if mapped_col else "unknown"
         conf = top["confidence"] if top else 0
 
+        line_no = _pipeline_line_for_column(exp, column_line_numbers, nodes, source_node_id)
         missing_columns.append({
             "expected_name": exp,
             "expected_dtype": exp_dtype,
             "mapped_target_column": mapped_col or "",
             "mapped_target_dtype": mapped_dtype,
             "recommendations": recs,
+            "pipeline_line_number": line_no,
             "recommended_pipeline_change": (
-                f"Add or map reference to '{exp}' in pipeline code near source read."
+                (
+                    f"Add or map reference to '{exp}' in pipeline code"
+                    + (f" (line {line_no})" if line_no else " near source read.")
+                )
                 if not mapped_col
                 else f"Map uploaded column '{mapped_col}' to expected '{exp}' before execution."
             ),
-            "impact_on_target": (
-                f"'{exp}' will have NULL values unless mapped to '{mapped_col}'."
-                if mapped_col
-                else f"'{exp}' will have NULL values in downstream steps."
-            ),
+            "impact_on_target": _impact_for_missing_column(exp, mapped_col),
             "top_confidence": conf,
         })
 
@@ -326,8 +365,11 @@ def persist_snapshots_after_execution(
         node = node_by_id.get(nid)
         if node and isinstance(node.get("runtime"), dict):
             lineage = node["runtime"].get("column_lineage")
+        key = snapshot_key(pipeline_filename, nid)
+        if store.exists(key):
+            continue
         snap = build_snapshot_from_profile(pipeline_filename, nid, profile, lineage)
-        store.save(snapshot_key(pipeline_filename, nid), snap)
+        store.save(key, snap)
 
 
 def parse_and_extract(code: str) -> tuple[list[dict], list[dict], list[dict]]:

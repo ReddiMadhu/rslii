@@ -163,7 +163,7 @@ function App() {
 
   return (
     <div
-      className="min-h-screen flex flex-col animate-fade-in"
+      className="rsli-app-inner min-h-screen flex flex-col animate-fade-in"
       style={{ background: "var(--bg-primary)" }}
     >
       <header
@@ -176,16 +176,6 @@ function App() {
       >
         <div className="flex items-center gap-3">
           <img src="/etlpulse_ai_logo.svg" alt="ETLPulse.AI" className="h-8 w-auto" />
-          <span
-            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-            style={{
-              background: "var(--bg-card)",
-              color: "var(--text-muted)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            ETL Analyzer
-          </span>
 
           {showTabs && (
             <div
@@ -326,7 +316,7 @@ function App() {
         {showTabs && displayResult && (
           <div className="animate-fade-in w-full max-w-7xl mx-auto">
             {activeTab === "summary" ? (
-              <SummaryTab result={displayResult} />
+              <SummaryTab result={result || displayResult} />
             ) : activeTab === "column-lineage" ? (
               <ColumnLineageTab result={displayResult} />
             ) : (

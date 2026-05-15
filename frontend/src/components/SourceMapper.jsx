@@ -3,7 +3,6 @@ import { useDropzone } from "react-dropzone";
 import {
   AlertCircle,
   ArrowLeft,
-  Building2,
   Cloud,
   Database,
   FileSpreadsheet,
@@ -33,7 +32,6 @@ const EXT_BY_FORMAT = {
 
 /** Demo connectors — upload path is the only active flow. */
 const DATA_SOURCE_CONNECTORS = [
-  { id: "claimvantage", label: "ClaimVantage", group: "Insurance", featured: true },
   { id: "postgresql", label: "PostgreSQL", group: "SQL" },
   { id: "mysql", label: "MySQL", group: "SQL" },
   { id: "sqlserver", label: "SQL Server", group: "SQL" },
@@ -273,15 +271,7 @@ function DataConnectionToggle({ mode, onChange }) {
 }
 
 function DataSourceConnectorPanel() {
-  const onConnectorClick = (connector) => {
-    toast.info(`Demo mode: switch to Upload Excel / files to run the pipeline.`, {
-      description: `${connector.label} connector is available in production. This demo uses local file upload.`,
-      duration: 4500,
-    });
-  };
-
-  const featured = DATA_SOURCE_CONNECTORS.filter((c) => c.featured);
-  const groups = [...new Set(DATA_SOURCE_CONNECTORS.filter((c) => !c.featured).map((c) => c.group))];
+  const groups = [...new Set(DATA_SOURCE_CONNECTORS.map((c) => c.group))];
 
   return (
     <div
@@ -289,22 +279,8 @@ function DataSourceConnectorPanel() {
       style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
     >
       <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-        SQL databases, warehouses, ClaimVantage, and cloud files—select a connector (preview only in this
-        demo).
+        SQL databases, warehouses, and cloud files—select a connector (preview only in this demo).
       </p>
-
-      {featured.length > 0 && (
-        <div className="space-y-2">
-          <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--primary)" }}>
-            Featured
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {featured.map((connector) => (
-              <ConnectorButton key={connector.id} connector={connector} onClick={onConnectorClick} featured />
-            ))}
-          </div>
-        </div>
-      )}
 
       {groups.map((group) => (
         <div key={group} className="space-y-2">
@@ -312,8 +288,8 @@ function DataSourceConnectorPanel() {
             {group}
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {DATA_SOURCE_CONNECTORS.filter((c) => !c.featured && c.group === group).map((connector) => (
-              <ConnectorButton key={connector.id} connector={connector} onClick={onConnectorClick} />
+            {DATA_SOURCE_CONNECTORS.filter((c) => c.group === group).map((connector) => (
+              <ConnectorButton key={connector.id} connector={connector} />
             ))}
           </div>
         </div>
@@ -322,35 +298,33 @@ function DataSourceConnectorPanel() {
   );
 }
 
-function ConnectorButton({ connector, onClick, featured = false }) {
+function ConnectorButton({ connector }) {
   return (
     <button
       type="button"
-      onClick={() => onClick(connector)}
+      disabled
       className={cn(
         "flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-xs font-medium transition-colors",
-        "hover:border-[var(--primary)]/40 hover:bg-[var(--bg-card-hover)]",
-        featured && "sm:py-3"
+        "opacity-60 cursor-not-allowed"
       )}
       style={{
-        background: featured ? "rgba(251,78,11,0.08)" : "var(--bg-card)",
-        border: featured ? "1px solid rgba(251,78,11,0.35)" : "1px solid var(--border)",
+        background: "var(--bg-card)",
+        border: "1px solid var(--border)",
         color: "var(--text-primary)",
       }}
     >
-      <ConnectorIcon id={connector.id} featured={featured} />
+      <ConnectorIcon id={connector.id} />
       <span className="truncate">{connector.label}</span>
     </button>
   );
 }
 
-function ConnectorIcon({ id, featured = false }) {
+function ConnectorIcon({ id }) {
   const props = {
-    size: featured ? 16 : 14,
+    size: 14,
     className: "shrink-0",
-    style: { color: featured ? "var(--primary)" : "var(--primary)" },
+    style: { color: "var(--primary)" },
   };
-  if (id === "claimvantage") return <Building2 {...props} />;
   if (id === "s3" || id === "csv_remote") return <Cloud {...props} />;
   if (id === "excel_remote") return <FileSpreadsheet {...props} />;
   if (id === "mongodb") return <HardDrive {...props} />;

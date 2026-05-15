@@ -108,6 +108,12 @@ export function buildFixSummary(validationOverrides, validationResult) {
     Object.entries(renames).forEach(([from, to]) => {
       fixes.push(`Missing column fix: map "${from}" → "${to}"`);
     });
+    (ovr.null_columns || []).forEach((col) => {
+      const mapped = Object.values(renames).includes(col);
+      if (!mapped) {
+        fixes.push(`Missing column fix: create "${col}" with null values`);
+      }
+    });
     Object.entries(casts).forEach(([col, dtype]) => {
       const file = files[sid];
       const ch = file?.dtype_changes?.find((c) => c.column === col);
