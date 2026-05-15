@@ -3,7 +3,11 @@ import {
   Sparkles, Columns, ArrowUpDown, Zap, AlertTriangle, FileCode,
   Layers, Code, Download,
 } from "lucide-react";
-import { getDownloadUrl } from "../lib/api";
+import {
+  getDownloadUrl,
+  getStaticHtmDownloadUrl,
+  STATIC_HTM_OUTPUT_NAME,
+} from "../lib/api";
 
 const iconMap = {
   database: Database,
@@ -193,48 +197,59 @@ export default function SummaryTab({ result }) {
         ))}
       </div>
 
-      {(result?.output_files?.length > 0 || result?.session_id) && (
-        <div
-          className="p-5 rounded-2xl"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-        >
-          <div className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <Download size={16} style={{ color: "var(--primary)" }} />
-            Output downloads
-          </div>
-          {result?.output_files?.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {result.output_files.map((o) => {
-                const href =
-                  result.session_id && o.name
-                    ? getDownloadUrl(result.session_id, o.name)
-                    : o.download_url || "#";
-                return (
-                  <a
-                    key={o.name}
-                    href={href}
-                    download={o.name}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold px-3 py-2 rounded-xl hover:opacity-90 transition-opacity"
-                    style={{
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--primary)",
-                    }}
-                  >
-                    {o.name}
-                  </a>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              No output files were written. Check pipeline targets and execution logs.
-            </p>
-          )}
+      <div
+        className="p-5 rounded-2xl"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+      >
+        <div className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+          <Download size={16} style={{ color: "var(--primary)" }} />
+          Output downloads
         </div>
-      )}
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={getStaticHtmDownloadUrl()}
+            download={STATIC_HTM_OUTPUT_NAME}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold px-3 py-2 rounded-xl hover:opacity-90 transition-opacity"
+            style={{
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border)",
+              color: "var(--primary)",
+            }}
+          >
+            {STATIC_HTM_OUTPUT_NAME}
+          </a>
+          {(result?.output_files || []).map((o) => {
+            const href =
+              result.session_id && o.name
+                ? getDownloadUrl(result.session_id, o.name)
+                : o.download_url || "#";
+            return (
+              <a
+                key={o.name}
+                href={href}
+                download={o.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold px-3 py-2 rounded-xl hover:opacity-90 transition-opacity"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border)",
+                  color: "var(--primary)",
+                }}
+              >
+                {o.name}
+              </a>
+            );
+          })}
+        </div>
+        {!(result?.output_files?.length > 0) && (
+          <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+            No pipeline output files were written. Claim Center HTM is always available above.
+          </p>
+        )}
+      </div>
 
       {/* Row 3: Script Metadata */}
       <div

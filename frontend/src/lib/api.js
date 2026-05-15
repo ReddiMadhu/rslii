@@ -52,6 +52,13 @@ export function getDownloadUrl(sessionId, filename) {
   return `${API_BASE}/download/${encodeURIComponent(sessionId)}/${encodeURIComponent(filename)}`;
 }
 
+/** Bundled Claim Center HTM Excel — drop file at backend/static/Claim_Center_ADV_10.1_HTM.xlsx */
+export const STATIC_HTM_OUTPUT_NAME = "Claim_Center_ADV_10.1_HTM.xlsx";
+
+export function getStaticHtmDownloadUrl() {
+  return `${API_BASE}/download/static/claim-center-htm`;
+}
+
 export async function validateSources({
   code,
   filename,

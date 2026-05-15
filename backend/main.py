@@ -508,6 +508,23 @@ async def execute_pipeline(request: Request):
     )
 
 
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+_STATIC_HTM_XLSX = "Claim_Center_ADV_10.1_HTM.xlsx"
+_STATIC_HTM_XLSX_PATH = os.path.join(_STATIC_DIR, _STATIC_HTM_XLSX)
+
+
+@app.get("/api/download/static/claim-center-htm")
+async def download_static_htm_output():
+    """Serve bundled Claim Center HTM Excel (not tied to an execution session)."""
+    if not os.path.isfile(_STATIC_HTM_XLSX_PATH):
+        raise HTTPException(status_code=404, detail="Static HTM file not found")
+    return FileResponse(
+        _STATIC_HTM_XLSX_PATH,
+        filename=_STATIC_HTM_XLSX,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @app.get("/api/download/{session_id}/{filename}")
 async def download_output(session_id: str, filename: str):
     root = _EXEC_SESSIONS.get(session_id)
