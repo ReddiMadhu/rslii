@@ -249,7 +249,13 @@ class ASTParser:
                 code=code_str, line=stmt.lineno, variable_out=var_name or "",
                 in_loop=in_loop,
             )
-            node.schema_refs = [col_name]
+            
+            # Extract source references from the assigned value
+            refs = [col_name]
+            for r in self._extract_schema_refs(stmt.value):
+                if r not in refs:
+                    refs.append(r)
+            node.schema_refs = refs
             if var_name and var_name in self._var_map:
                 self._add_edge(self._var_map[var_name], node.id, var_name)
             if var_name:
@@ -654,7 +660,7 @@ class ASTParser:
 
         return out
 
-    def _extract_schema_refs(self, call_node: ast.Call) -> list[str]:
+    def _extract_schema_refs(self, call_node: ast.AST) -> list[str]:
         """Extract column names referenced in a call."""
         refs = []
         for node in ast.walk(call_node):

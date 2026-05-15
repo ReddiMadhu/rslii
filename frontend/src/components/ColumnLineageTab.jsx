@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -21,7 +21,9 @@ import {
   ArrowRightLeft,
   Type,
   Eye,
+  Loader2,
 } from "lucide-react";
+import { getApiBase } from "../lib/apiBase";
 import useAnalysisStore from "../store/useAnalysisStore";
 import {
   computeColumnTrace,
@@ -192,14 +194,41 @@ function ColumnTraceNodeComponent({ data }) {
         </div>
       )}
 
+      {/* Per-node AI / template summary */}
+      {d.journeySummary && (
+        <div className="ctn-ai-summary">
+          <div className="ctn-ai-summary-header">
+            <Sparkles size={11} style={{ color: d.journeySummarySource === "llm" ? "#a855f7" : "#fb4e0b" }} />
+            {d.journeySummarySource === "llm" && (
+              <span className="ctn-ai-badge">AI</span>
+            )}
+          </div>
+          <span className="ctn-ai-summary-text">{d.journeySummary}</span>
+        </div>
+      )}
+      {d.journeySummaryLoading && !d.journeySummary && (
+        <div className="ctn-ai-summary ctn-ai-summary-loading">
+          <Loader2 size={12} className="ctn-spinner" />
+          <span className="ctn-ai-summary-text" style={{ opacity: 0.5 }}>Generating summary...</span>
+        </div>
+      )}
+
       {/* Expand indicator */}
       <div className="ctn-expand-hint">
         {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </div>
 
       {/* Handles */}
-      <Handle type="target" position={Position.Top} style={{ background: stateColor, width: 8, height: 8 }} />
-      <Handle type="source" position={Position.Bottom} style={{ background: stateColor, width: 8, height: 8 }} />
+      <Handle 
+        type="target" 
+        position={d.direction === "upstream" ? Position.Bottom : Position.Top} 
+        style={{ background: stateColor, width: 8, height: 8 }} 
+      />
+      <Handle 
+        type="source" 
+        position={d.direction === "upstream" ? Position.Top : Position.Bottom} 
+        style={{ background: stateColor, width: 8, height: 8 }} 
+      />
     </div>
   );
 }
@@ -225,9 +254,11 @@ function StateIcon({ state, size = 14 }) {
 /* ================================================================
    Journey Summary Card
    ================================================================ */
-function JourneySummary({ summary }) {
+function JourneySummary({ summary, overallSummary, llmUsed, isLoading }) {
   if (!summary) return null;
-  const sc = getStateColor(summary.wasDropped ? "dropped" : "introduced");
+
+  // Use LLM overall_summary if available, else use template narrative
+  const displayNarrative = overallSummary || summary.narrative || "";
 
   return (
     <div className="journey-summary-card">
@@ -236,20 +267,41 @@ function JourneySummary({ summary }) {
           <Columns3 size={16} style={{ color: "#fb4e0b" }} />
           <span className="js-col-name">{summary.column}</span>
           <span className="js-dtype">({summary.dtype})</span>
+          {llmUsed && (
+            <span className="js-ai-badge">
+              <Sparkles size={10} />
+              AI Summary
+            </span>
+          )}
         </div>
         <span className="js-direction-badge">
           {summary.direction === "downstream" ? (
-            <>Source {"->"} Target</>
+            <>Source {"->"}  Target</>
           ) : (
-            <>Target {"->"} Source</>
+            <>Target {"->"}  Source</>
           )}
         </span>
       </div>
-      <div className="js-lines">
-        {summary.lines.map((line, i) => (
-          <div key={i} className="js-line">{line}</div>
-        ))}
+      <div className="js-narrative">
+        {isLoading && !displayNarrative ? (
+          <div className="js-narrative-loading">
+            <Loader2 size={14} className="ctn-spinner" />
+            <span>Generating journey summary...</span>
+          </div>
+        ) : (
+          <p className="js-narrative-text">{displayNarrative}</p>
+        )}
       </div>
+      {summary.totalOperations > 0 && (
+        <div className="js-meta">
+          <span>{summary.totalOperations} operation{summary.totalOperations > 1 ? "s" : ""}</span>
+          {summary.wasDropped && <span className="js-meta-tag dropped">Dropped</span>}
+          {summary.wasAggregated && <span className="js-meta-tag aggregated">Aggregated</span>}
+          {summary.wasDerived && <span className="js-meta-tag derived">Derived</span>}
+          {summary.wasRenamed && <span className="js-meta-tag renamed">Renamed</span>}
+          {summary.wasJoined && <span className="js-meta-tag joined">Joined</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -269,6 +321,10 @@ export default function ColumnLineageTab({ result }) {
   const [direction, setDirection] = useState("downstream");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
+  const [journeySummaryData, setJourneySummaryData] = useState(null);
+  const [journeySummaryLoading, setJourneySummaryLoading] = useState(false);
+  const journeySummaryCache = useRef({});
+  const pipelineCode = useAnalysisStore((s) => s.pipelineCode);
 
   const discovered = result?.discovered_columns;
   const hasColumns =
@@ -280,19 +336,71 @@ export default function ColumnLineageTab({ result }) {
     if (!selectedCol || !result) return;
     const trace = computeColumnTrace(result, selectedCol, direction);
     setColumnTraceData(trace);
+    setJourneySummaryData(null);
   }, [selectedCol, direction, result]);
+
+  // Fetch GenAI / template journey summaries after trace is computed
+  useEffect(() => {
+    if (!columnTraceData?.traceNodes?.length || !selectedCol) return;
+
+    const cacheKey = `${selectedCol}:${direction}`;
+    if (journeySummaryCache.current[cacheKey]) {
+      setJourneySummaryData(journeySummaryCache.current[cacheKey]);
+      return;
+    }
+
+    let cancelled = false;
+    setJourneySummaryLoading(true);
+
+    const fetchSummary = async () => {
+      try {
+        const resp = await fetch(`${getApiBase()}/column-journey-summary`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            column: selectedCol,
+            direction,
+            trace_nodes: columnTraceData.traceNodes,
+            source_code: pipelineCode || "",
+          }),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (!cancelled) {
+          journeySummaryCache.current[cacheKey] = data;
+          setJourneySummaryData(data);
+        }
+      } catch (err) {
+        console.warn("Column journey summary fetch failed:", err);
+      } finally {
+        if (!cancelled) setJourneySummaryLoading(false);
+      }
+    };
+
+    fetchSummary();
+    return () => { cancelled = true; };
+  }, [columnTraceData, selectedCol, direction, pipelineCode]);
 
   // Build ReactFlow nodes and edges from trace data
   const { flowNodes, flowEdges } = useMemo(() => {
     if (!columnTraceData?.traceNodes?.length) return { flowNodes: [], flowEdges: [] };
 
+    const nodeSummaries = journeySummaryData?.node_summaries || {};
+    const summarySource = journeySummaryData?.llm_used ? "llm" : "template";
+
     const fNodes = columnTraceData.traceNodes.map((tn, i) => ({
       id: tn.id,
       type: "columnTrace",
-      position: { x: 60, y: i * 180 },
-      data: tn,
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
+      position: { x: 60, y: i * 220 },
+      data: {
+        ...tn,
+        direction,
+        journeySummary: nodeSummaries[tn.id] || "",
+        journeySummarySource: summarySource,
+        journeySummaryLoading: journeySummaryLoading,
+      },
+      sourcePosition: direction === "upstream" ? Position.Top : Position.Bottom,
+      targetPosition: direction === "upstream" ? Position.Bottom : Position.Top,
     }));
 
     const fEdges = columnTraceData.traceEdges.map((te, i) => {
@@ -315,7 +423,7 @@ export default function ColumnLineageTab({ result }) {
     });
 
     return { flowNodes: fNodes, flowEdges: fEdges };
-  }, [columnTraceData]);
+  }, [columnTraceData, journeySummaryData, journeySummaryLoading]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges);
@@ -376,7 +484,7 @@ export default function ColumnLineageTab({ result }) {
                   autoFocus
                 />
               </div>
-              {filteredSource.length > 0 && (
+              {direction === "downstream" && filteredSource.length > 0 && (
                 <>
                   <div className="clt-dropdown-section">Source Columns</div>
                   {filteredSource.map((c) => (
@@ -396,7 +504,7 @@ export default function ColumnLineageTab({ result }) {
                   ))}
                 </>
               )}
-              {filteredOutput.length > 0 && (
+              {direction === "upstream" && filteredOutput.length > 0 && (
                 <>
                   <div className="clt-dropdown-section">Target Columns</div>
                   {filteredOutput.map((c) => (
@@ -416,7 +524,7 @@ export default function ColumnLineageTab({ result }) {
                   ))}
                 </>
               )}
-              {filteredSource.length === 0 && filteredOutput.length === 0 && (
+              {((direction === "downstream" && filteredSource.length === 0) || (direction === "upstream" && filteredOutput.length === 0)) && (
                 <div className="clt-dropdown-empty">No matching columns</div>
               )}
             </div>
@@ -427,13 +535,13 @@ export default function ColumnLineageTab({ result }) {
         <div className="clt-direction-toggle">
           <button
             className={`clt-dir-btn ${direction === "downstream" ? "active" : ""}`}
-            onClick={() => setDirection("downstream")}
+            onClick={() => { setDirection("downstream"); setSelectedCol(""); }}
           >
             Source {"->"} Target
           </button>
           <button
             className={`clt-dir-btn ${direction === "upstream" ? "active" : ""}`}
-            onClick={() => setDirection("upstream")}
+            onClick={() => { setDirection("upstream"); setSelectedCol(""); }}
           >
             Target {"->"} Source
           </button>
@@ -452,11 +560,16 @@ export default function ColumnLineageTab({ result }) {
       {selectedCol && columnTraceData && (
         <div className="clt-trace-container">
           {/* Journey summary */}
-          <JourneySummary summary={columnTraceData.summary} />
+          <JourneySummary
+            summary={columnTraceData.summary}
+            overallSummary={journeySummaryData?.overall_summary}
+            llmUsed={journeySummaryData?.llm_used}
+            isLoading={journeySummaryLoading}
+          />
 
           {/* Trace graph */}
           {columnTraceData.traceNodes.length > 0 ? (
-            <div className="clt-graph" style={{ height: Math.max(400, columnTraceData.traceNodes.length * 180 + 80) }}>
+            <div className="clt-graph" style={{ height: Math.max(400, columnTraceData.traceNodes.length * 220 + 80) }}>
               <ReactFlow
                 nodes={nodes}
                 edges={edges}

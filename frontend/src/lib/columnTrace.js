@@ -330,7 +330,6 @@ function _generateSummary(column, direction, traceNodes) {
   if (!traceNodes.length) return null;
 
   const states = traceNodes.map((n) => n.state);
-  const operations = traceNodes.map((n) => n.operationLabel);
   const firstNode = traceNodes[0];
   const lastNode = traceNodes[traceNodes.length - 1];
 
@@ -350,75 +349,74 @@ function _generateSummary(column, direction, traceNodes) {
   // Count passthroughs
   const passthroughCount = states.filter((s) => s === "passthrough").length;
 
-  // Build summary lines
-  const lines = [];
+  // Build flowing narrative (2-3 sentences, not bullet points)
+  const parts = [];
 
-  // Origin
+  // Origin sentence
   if (direction === "downstream") {
-    lines.push(`Introduced at: ${firstNode.operationLabel}`);
-    if (firstNode.rowsOut != null) {
-      lines.push(`Starting: ${firstNode.rowsOut.toLocaleString()} rows, ${firstNode.dtype}`);
-    }
+    const dtypeStr = firstNode.dtype ? ` as a ${firstNode.dtype} field` : "";
+    const rowStr = firstNode.rowsOut != null
+      ? ` with ${firstNode.rowsOut.toLocaleString()} rows`
+      : "";
+    parts.push(
+      `The column "${column}" originates at the ${firstNode.operationLabel} step${dtypeStr}${rowStr}.`
+    );
   } else {
-    lines.push(`Located at: ${firstNode.operationLabel}`);
-    if (firstNode.rowsOut != null) {
-      lines.push(`Current: ${firstNode.rowsOut.toLocaleString()} rows, ${firstNode.dtype}`);
-    }
+    const dtypeStr = firstNode.dtype ? ` as a ${firstNode.dtype} field` : "";
+    const rowStr = firstNode.rowsOut != null
+      ? ` containing ${firstNode.rowsOut.toLocaleString()} rows`
+      : "";
+    parts.push(
+      `The column "${column}" appears in the final output at the ${firstNode.operationLabel} step${dtypeStr}${rowStr}.`
+    );
   }
 
-  // Journey
-  lines.push(`Traversed ${traceNodes.length} operation${traceNodes.length > 1 ? "s" : ""}`);
-
-  // Key events
-  if (wasAggregated) {
-    const aggNode = traceNodes.find((n) => n.state === "aggregated");
-    lines.push(`⚠️ Survived aggregation at ${aggNode?.operationLabel || "GroupBy"}`);
+  // Key transformations sentence
+  const events = [];
+  if (wasDerived) {
+    const dn = traceNodes.find((n) => n.state === "derived");
+    if (dn?.from?.length) {
+      events.push(`calculated from ${dn.from.join(", ")}`);
+    } else {
+      events.push("derived through a computation");
+    }
   }
   if (wasRenamed) {
-    const renNode = traceNodes.find((n) => n.state === "renamed");
-    if (renNode) {
-      const oldName = renNode.from?.[0] || "?";
-      lines.push(`Renamed: ${oldName} → ${renNode.column}`);
-    }
+    const rn = traceNodes.find((n) => n.state === "renamed");
+    if (rn?.from?.[0]) events.push(`renamed from "${rn.from[0]}"`);
   }
-  if (wasJoined) {
-    const joinNode = traceNodes.find((n) => n.state === "joined");
-    lines.push(`Brought in from merge at ${joinNode?.operationLabel || "Merge"}`);
-  }
-  if (wasTypeCast) {
-    const tcNode = traceNodes.find((n) => n.state === "type_changed");
-    lines.push(`Type changed at ${tcNode?.operationLabel || ""}`);
-  }
-  if (wasDropped) {
-    const dropNode = traceNodes.find((n) => n.state === "dropped" || n.state === "agg_dropped");
-    const reason = dropNode?.state === "agg_dropped" ? "lost in aggregation" : "explicitly dropped";
-    lines.push(`❌ ${reason} at ${dropNode?.operationLabel || ""}`);
-  }
-  if (derivedCols.length) {
-    lines.push(`Derived column${derivedCols.length > 1 ? "s" : ""}: ${derivedCols.join(", ")}`);
+  if (wasJoined) events.push("brought in from a merged dataset");
+  if (wasAggregated) events.push("summarised during the grouping step");
+  if (wasTypeCast) events.push("had its data type converted");
+
+  if (events.length) {
+    parts.push("Along the way, it was " + events.join(", ") + ".");
   }
 
-  // Destination
-  if (!wasDropped && lastNode) {
+  // Destination sentence
+  if (wasDropped) {
+    const dropNode = traceNodes.find(
+      (n) => n.state === "dropped" || n.state === "agg_dropped"
+    );
+    const reason =
+      dropNode?.state === "agg_dropped"
+        ? "lost during the aggregation step"
+        : "explicitly removed";
+    parts.push(`This column was ${reason} at ${dropNode?.operationLabel || "a later step"} and does not appear in the final output.`);
+  } else if (lastNode) {
     if (direction === "downstream") {
       const lastCat = lastNode.operationCategory;
       if (lastCat === "target") {
-        lines.push(`Written to: ${lastNode.operationLabel}`);
-      }
-      if (lastNode.rowsOut != null) {
-        lines.push(`Final: ${lastNode.rowsOut.toLocaleString()} rows`);
+        parts.push(`It is ultimately written to the output at ${lastNode.operationLabel}.`);
+      } else {
+        parts.push(`It passes through ${traceNodes.length} operation${traceNodes.length > 1 ? "s" : ""} in total.`);
       }
     } else {
-      lines.push(`Originated at: ${lastNode.operationLabel}`);
+      parts.push(`Tracing back, it originates at ${lastNode.operationLabel}.`);
     }
   }
 
-  // Null cleanup
-  const firstNulls = firstNode.nullCount || 0;
-  const lastNulls = lastNode?.nullCount || 0;
-  if (firstNulls > 0 && lastNulls < firstNulls) {
-    lines.push(`Nulls: ${firstNulls} → ${lastNulls} (${firstNulls - lastNulls} cleaned)`);
-  }
+  const narrative = parts.join(" ");
 
   return {
     column,
@@ -432,6 +430,8 @@ function _generateSummary(column, direction, traceNodes) {
     wasDropped,
     wasJoined,
     wasTypeCast,
-    lines,
+    narrative,
+    // Keep lines as empty array for backward compat, but narrative is primary
+    lines: [],
   };
 }

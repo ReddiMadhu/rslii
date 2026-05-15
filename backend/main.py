@@ -100,6 +100,13 @@ class ParseRequest(BaseModel):
     filename: Optional[str] = None
 
 
+class ColumnJourneySummaryRequest(BaseModel):
+    column: str
+    direction: str  # "upstream" | "downstream"
+    trace_nodes: list[dict]
+    source_code: str
+
+
 class HealthResponse(BaseModel):
     status: str
 
@@ -451,6 +458,48 @@ async def download_output(session_id: str, filename: str):
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path, filename=safe, media_type="application/octet-stream")
+
+
+@app.post("/api/column-journey-summary")
+async def column_journey_summary(request: ColumnJourneySummaryRequest):
+    """Generate GenAI or template summaries for a column's journey."""
+    from llm.column_journey_enricher import (
+        enrich_column_journey,
+        generate_template_node_summary,
+        generate_template_overall_summary,
+    )
+
+    if not request.trace_nodes:
+        return {"node_summaries": {}, "overall_summary": "", "llm_used": False}
+
+    # Try LLM first
+    try:
+        result = await enrich_column_journey(
+            request.column,
+            request.direction,
+            request.trace_nodes,
+            request.source_code,
+        )
+        if result.get("llm_used") and result.get("overall_summary"):
+            return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+
+    # Fallback: template-based summaries
+    node_summaries = {}
+    for tn in request.trace_nodes:
+        node_summaries[tn["id"]] = generate_template_node_summary(tn)
+
+    overall = generate_template_overall_summary(
+        request.column, request.direction, request.trace_nodes
+    )
+
+    return {
+        "node_summaries": node_summaries,
+        "overall_summary": overall,
+        "llm_used": False,
+    }
 
 
 if __name__ == "__main__":
