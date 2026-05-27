@@ -8,7 +8,7 @@ import {
   ChevronUp, 
   ShieldAlert, 
   ShieldCheck,
-  ShieldWarning,
+  Shield,
   FileSpreadsheet, 
   Loader2, 
   ArrowLeft,
@@ -135,7 +135,7 @@ export default function AuditTrail({ onClose }) {
     if (level === "medium") {
       return (
         <span className="inline-flex items-center gap-1 text-[#eab308] bg-[rgba(234,179,8,0.06)] border border-[#eab308]/20 px-2 py-0.5 rounded-lg text-[10px] font-bold">
-          <ShieldWarning size={11} /> Medium
+          <Shield size={11} /> Medium
         </span>
       );
     }
