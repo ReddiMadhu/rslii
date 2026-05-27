@@ -350,11 +350,13 @@ export default function ColumnLineageTab({ result }) {
         const resp = await fetch(`${getApiBase()}/column-journey-summary`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             column: selectedCol,
             direction,
             trace_nodes: columnTraceData.traceNodes,
             source_code: pipelineCode || "",
+            session_id: result?.session_id || null,
           }),
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);

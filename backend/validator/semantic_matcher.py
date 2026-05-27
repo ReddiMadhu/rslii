@@ -74,12 +74,16 @@ def fuzzy_match_columns(
     return scored[:top_n]
 
 
+from sqlalchemy.orm import Session
+
 async def llm_match_columns(
     expected_name: str,
     expected_dtype: str,
     candidate_columns: list[dict[str, Any]],
     code_context: str,
     sample_values: Optional[dict[str, list]] = None,
+    db: Optional[Session] = None,
+    username: Optional[str] = None,
 ) -> Optional[list[dict[str, Any]]]:
     try:
         from llm.llm_factory import get_resilient_llm
@@ -103,8 +107,32 @@ Return JSON array: [{{"column": "name", "confidence": 0.0-1.0, "reason": "brief"
 Only include candidates with confidence > 0.3. Max 5 items."""
 
     try:
+        import os
         resp = await llm.ainvoke(prompt)
         text = resp.content if hasattr(resp, "content") else str(resp)
+
+        # Metadata and token usage extraction for audit trail
+        metadata = getattr(resp, "response_metadata", {})
+        usage = metadata.get("token_usage") or metadata.get("usage_metadata") or {}
+        tokens = usage.get("total_tokens") or usage.get("total_billable_characters") or 0
+        model_name = metadata.get("model_name") or os.environ.get("GEMINI_MODEL") or os.environ.get("OPENAI_MODEL") or "unknown"
+
+        if db and username:
+            try:
+                from audit.logger import log_llm_call
+                await log_llm_call(
+                    db=db,
+                    session_id=None,
+                    username=username,
+                    prompt=prompt,
+                    response_content=text,
+                    model_name=model_name,
+                    tokens=tokens,
+                )
+            except Exception as ex:
+                import logging
+                logging.getLogger("rsli").warning("Failed to log LLM semantic match call: %s", ex)
+
         m = re.search(r"\[[\s\S]*\]", text)
         if not m:
             return None
@@ -125,9 +153,11 @@ Only include candidates with confidence > 0.3. Max 5 items."""
 
 
 class SemanticColumnMatcher:
-    def __init__(self, *, enable_llm: bool = False, code: str = "") -> None:
+    def __init__(self, *, enable_llm: bool = False, code: str = "", db: Optional[Session] = None, username: Optional[str] = None) -> None:
         self.enable_llm = enable_llm
         self.code = code
+        self.db = db
+        self.username = username
 
     async def recommend(
         self,
@@ -155,7 +185,9 @@ class SemanticColumnMatcher:
                 expected_dtype,
                 candidates,
                 self.code,
-                sample_values,
+                None, # Strip sample values to ensure no PII goes to LLM
+                db=self.db,
+                username=self.username,
             )
             if llm_result:
                 return llm_result, True

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import useAnalysisStore, { APP_STATES } from "../store/useAnalysisStore";
 import { validateSources } from "../lib/api";
+import RiskBadge from "./RiskBadge";
 
 const EXT_BY_FORMAT = {
   csv: [".csv", ".tsv", ".txt"],
@@ -145,9 +146,12 @@ export default function SourceMapper({ llmAvailable = false }) {
         style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-            Map data files
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
+              Map data files
+            </h2>
+            <RiskBadge />
+          </div>
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
             {parseResult?.summary?.total_nodes ?? 0} operations
           </span>

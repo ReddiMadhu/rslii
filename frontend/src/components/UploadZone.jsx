@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FileCode, Clipboard, X, Loader2, Sparkles } from "lucide-react";
+import { Upload, FileCode, Clipboard, X, Loader2, Sparkles, AlertOctagon } from "lucide-react";
 import { cn } from "../lib/utils";
+import useAnalysisStore from "../store/useAnalysisStore";
 
 export default function UploadZone({ onParse, onAnalyze, isLoading, llmAvailable = false, hideLlm = false }) {
   const [mode, setMode] = useState("upload"); // "upload" | "paste"
@@ -48,11 +49,42 @@ export default function UploadZone({ onParse, onAnalyze, isLoading, llmAvailable
     setMode("upload");
   };
 
+  const parseResult = useAnalysisStore((s) => s.parseResult);
+  const isBlocked = parseResult?.risk?.blocked;
   const lineCount = code.trim() ? code.trim().split("\n").length : 0;
-  const canAnalyze = code.trim().length > 0 && !isLoading;
+  const canAnalyze = code.trim().length > 0 && !isLoading && !isBlocked;
 
   return (
-    <div className="w-full max-w-3xl mx-auto animate-fade-in">
+    <div className="w-full max-w-3xl mx-auto animate-fade-in space-y-4">
+      {isBlocked && (
+        <div className="p-5 rounded-2xl border border-[#ef4444] bg-[rgba(239,68,68,0.06)] animate-fade-in">
+          <div className="flex items-start gap-3">
+            <AlertOctagon size={20} className="text-[#ef4444] mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-white leading-tight">
+                Execution Blocked (High Risk Script)
+              </h4>
+              <p className="text-xs text-[#a0a0b8] mt-1 leading-relaxed">
+                This script contains operations flagged as High Risk under your organization's governance guidelines. Execution is disabled until the following items are resolved:
+              </p>
+              <ul className="list-disc pl-4 mt-2.5 space-y-1.5 text-xs text-[#a0a0b8]">
+                {parseResult.risk.reasons.map((r, idx) => (
+                  <li key={idx} className="marker:text-[#ef4444]">{r}</li>
+                ))}
+              </ul>
+              <button
+                onClick={() => {
+                  useAnalysisStore.setState({ parseResult: null });
+                  handleClear();
+                }}
+                className="mt-4 px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(15,15,22,0.4)] text-xs font-semibold text-[#a0a0b8] hover:text-white hover:border-[#ef4444]/40 transition-all cursor-pointer"
+              >
+                Reset & Clear Block
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Mode Tabs */}
       <div
         className="flex gap-1 p-1 rounded-xl mb-4 w-fit"

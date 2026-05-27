@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { healthCheck, parseCode } from "./lib/api";
-import { Sun, Moon, Zap, RotateCcw, LayoutDashboard, GitBranch, Columns3, RefreshCw } from "lucide-react";
+import { Sun, Moon, Zap, RotateCcw, LayoutDashboard, GitBranch, Columns3, RefreshCw, Loader2, ClipboardList } from "lucide-react";
 import useAnalysisStore, { APP_STATES } from "./store/useAnalysisStore";
+import useAuthStore from "./store/useAuthStore";
 import UploadZone from "./components/UploadZone";
 import SourceMapper from "./components/SourceMapper";
 import SourceValidation from "./components/SourceValidation";
@@ -11,6 +12,12 @@ import LineageTab from "./components/LineageTab";
 import ColumnLineageTab from "./components/ColumnLineageTab";
 import NodeDetail from "./components/NodeDetail";
 import LandingPage from "./components/LandingPage";
+import LoginPage from "./components/LoginPage";
+import UserMenu from "./components/UserMenu";
+import ChangePasswordModal from "./components/ChangePasswordModal";
+import AdminUsers from "./components/AdminUsers";
+import RiskBadge from "./components/RiskBadge";
+import AuditTrail from "./components/AuditTrail";
 
 import "./index.css";
 
@@ -85,6 +92,12 @@ function App() {
   const setAppState = useAnalysisStore((s) => s.setAppState);
   const reset = useAnalysisStore((s) => s.reset);
 
+  // Auth additions
+  const { isAuthenticated, checkAuth, user, isLoading: authLoading } = useAuthStore();
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showAdminConsole, setShowAdminConsole] = useState(false);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
+
   const displayResult = useMemo(() => {
     if (appState === APP_STATES.EXECUTING && parseResult?.nodes) {
       const nodes = parseResult.nodes.map((n) => {
@@ -117,7 +130,9 @@ function App() {
 
   const showTabs = result || appState === APP_STATES.EXECUTING;
 
+  // On mount check auth and check health
   useEffect(() => {
+    checkAuth();
     healthCheck()
       .then((data) => {
         setBackendStatus("connected");
@@ -131,16 +146,53 @@ function App() {
 
   const handleParse = async ({ code, filename }) => {
     setLoading(true);
+    setError(null);
     try {
       const data = await parseCode({ code, filename });
-      setParsed(data, code, filename);
-      const need = (data.sources || []).filter((s) => s.requires_upload).length;
-      toast.success(`Parsed — ${need} file slot(s) to map`);
+      if (data.risk?.blocked) {
+        toast.error("Script execution blocked: High Risk operations detected.");
+        useAnalysisStore.setState({ parseResult: data, pipelineCode: code, pipelineFilename: filename });
+        setLoading(false);
+      } else {
+        setParsed(data, code, filename);
+        const need = (data.sources || []).filter((s) => s.requires_upload).length;
+        toast.success(`Parsed — ${need} file slot(s) to map`);
+      }
     } catch (err) {
       setError(err.message);
       toast.error(err.message);
+      setLoading(false);
     }
   };
+
+  // Auth Guard Rendering
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#050508] flex flex-col items-center justify-center gap-3">
+        <Loader2 size={32} className="animate-spin text-[#fb4e0b]" />
+        <span className="text-xs text-[#a0a0b8] font-medium uppercase tracking-wider">Securing Workspace...</span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LoginPage />
+        <Toaster
+          theme="dark"
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
+            },
+          }}
+        />
+      </>
+    );
+  }
 
   if (appState === APP_STATES.LANDING) {
     return (
@@ -177,7 +229,7 @@ function App() {
         <div className="flex items-center gap-3">
           <img src="/etlpulse_ai_logo.svg" alt="ETLPulse.AI" className="h-8 w-auto" />
 
-          {showTabs && (
+          {showTabs && !showAdminConsole && !showAuditTrail && (
             <div
               className="flex gap-1 p-1 rounded-lg ml-4"
               style={{ background: "var(--bg-secondary)" }}
@@ -223,7 +275,7 @@ function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          {appState === APP_STATES.RESULTS && (
+          {appState === APP_STATES.RESULTS && !showAdminConsole && !showAuditTrail && (
             <button
               onClick={() => setAppState(APP_STATES.SOURCE_MAPPING)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
@@ -237,7 +289,7 @@ function App() {
               <span className="group-hover:text-[var(--text-primary)] transition-colors">Re-execute</span>
             </button>
           )}
-          {(result || parseResult) && (
+          {(result || parseResult) && !showAdminConsole && !showAuditTrail && (
             <button
               onClick={reset}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
@@ -252,31 +304,33 @@ function App() {
             </button>
           )}
 
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-            style={{
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{
-                background:
-                  backendStatus === "connected"
-                    ? "#22c55e"
-                    : backendStatus === "error"
-                    ? "#ef4444"
-                    : "#eab308",
+          {!showAdminConsole && !showAuditTrail && (
+            <button
+              onClick={() => {
+                setShowAuditTrail(true);
+                setShowAdminConsole(false);
               }}
-            />
-            {backendStatus === "connected"
-              ? "API Connected"
-              : backendStatus === "error"
-              ? "API Error"
-              : "Checking..."}
-          </div>
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
+              style={{
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <ClipboardList size={13} className="group-hover:text-[var(--primary)] transition-colors" />
+              <span className="group-hover:text-[var(--text-primary)] transition-colors">Audit Trail</span>
+            </button>
+          )}
+
+          {!showAdminConsole && <RiskBadge />}
+          {/* User Menu Dropdown replaces the Connected status pill */}
+          <UserMenu
+            onChangePasswordClick={() => setShowChangePassword(true)}
+            onManageUsersClick={() => {
+              setShowAdminConsole(true);
+              setShowAuditTrail(false);
+            }}
+          />
           <ThemeToggle />
         </div>
       </header>
@@ -295,41 +349,53 @@ function App() {
           </div>
         )}
 
-        {appState === APP_STATES.UPLOAD_SCRIPT && (
-          <div className="flex-1 flex items-center justify-center">
-            <UploadZone onParse={handleParse} isLoading={isLoading} llmAvailable={llmAvailable} hideLlm />
-          </div>
-        )}
-
-        {appState === APP_STATES.SOURCE_MAPPING && (
-          <div className="flex-1 flex items-center justify-center">
-            <SourceMapper llmAvailable={llmAvailable} />
-          </div>
-        )}
-
-        {appState === APP_STATES.SOURCE_VALIDATION && (
-          <div className="flex-1 flex items-start justify-center py-6 overflow-y-auto w-full">
-            <SourceValidation llmAvailable={llmAvailable} />
-          </div>
-        )}
-
-        {showTabs && displayResult && (
-          <div className="animate-fade-in w-full max-w-7xl mx-auto">
-            {activeTab === "summary" ? (
-              <SummaryTab result={result || displayResult} />
-            ) : activeTab === "column-lineage" ? (
-              <ColumnLineageTab result={displayResult} />
-            ) : (
-              <LineageTab result={displayResult} />
+        {showAdminConsole ? (
+          <AdminUsers onClose={() => setShowAdminConsole(false)} />
+        ) : showAuditTrail ? (
+          <AuditTrail onClose={() => setShowAuditTrail(false)} />
+        ) : (
+          <>
+            {appState === APP_STATES.UPLOAD_SCRIPT && (
+              <div className="flex-1 flex items-center justify-center">
+                <UploadZone onParse={handleParse} isLoading={isLoading} llmAvailable={llmAvailable} hideLlm />
+              </div>
             )}
-            {selectedDetailNode &&
-              activeTab !== "column-lineage" &&
-              (appState === APP_STATES.RESULTS || appState === APP_STATES.EXECUTING) && (
-              <NodeDetail result={displayResult} />
+
+            {appState === APP_STATES.SOURCE_MAPPING && (
+              <div className="flex-1 flex items-center justify-center">
+                <SourceMapper llmAvailable={llmAvailable} />
+              </div>
             )}
-          </div>
+
+            {appState === APP_STATES.SOURCE_VALIDATION && (
+              <div className="flex-1 flex items-start justify-center py-6 overflow-y-auto w-full">
+                <SourceValidation llmAvailable={llmAvailable} />
+              </div>
+            )}
+
+            {showTabs && displayResult && (
+              <div className="animate-fade-in w-full max-w-7xl mx-auto">
+                {activeTab === "summary" ? (
+                  <SummaryTab result={result || displayResult} />
+                ) : activeTab === "column-lineage" ? (
+                  <ColumnLineageTab result={displayResult} />
+                ) : (
+                  <LineageTab result={displayResult} />
+                )}
+                {selectedDetailNode &&
+                  activeTab !== "column-lineage" &&
+                  (appState === APP_STATES.RESULTS || appState === APP_STATES.EXECUTING) && (
+                  <NodeDetail result={displayResult} />
+                )}
+              </div>
+            )}
+          </>
         )}
       </main>
+
+      {showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
 
       <Toaster
         theme="dark"
@@ -347,3 +413,4 @@ function App() {
 }
 
 export default App;
+

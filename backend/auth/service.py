@@ -1,0 +1,178 @@
+"""Auth service — registration, login, password hashing, JWT token management."""
+
+import os
+from datetime import datetime, timedelta, timezone
+
+import bcrypt
+import jwt
+from sqlalchemy.orm import Session
+
+from database.models import User
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+SECRET_KEY = os.environ.get("RSLI_SECRET_KEY", "dev-secret-key-change-me")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRY_DAYS = int(os.environ.get("RSLI_JWT_EXPIRY_DAYS", "7"))
+ADMIN_EMAIL = os.environ.get("RSLI_ADMIN_EMAIL", "")
+INVITE_CODE = os.environ.get("RSLI_INVITE_CODE", "")
+
+# Cookie settings
+COOKIE_NAME = "rsli_token"
+COOKIE_MAX_AGE = JWT_EXPIRY_DAYS * 24 * 60 * 60  # seconds
+COOKIE_SECURE = os.environ.get("RSLI_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+
+
+# ---------------------------------------------------------------------------
+# Password hashing (bcrypt)
+# ---------------------------------------------------------------------------
+
+def hash_password(plain: str) -> str:
+    """Hash a plaintext password with bcrypt (12 rounds)."""
+    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    """Verify a plaintext password against its bcrypt hash."""
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# JWT token management
+# ---------------------------------------------------------------------------
+
+def create_token(user: User) -> str:
+    """Create a JWT token for the given user."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user.username,
+        "user_id": user.id,
+        "is_admin": user.is_admin,
+        "iat": now,
+        "exp": now + timedelta(days=JWT_EXPIRY_DAYS),
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def decode_token(token: str) -> dict | None:
+    """Decode and verify a JWT token. Returns payload dict or None."""
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return None
+
+
+# ---------------------------------------------------------------------------
+# User CRUD operations
+# ---------------------------------------------------------------------------
+
+def register_user(
+    db: Session, username: str, email: str, password: str, invite_code: str
+) -> User:
+    """Register a new user. Raises ValueError on validation failure."""
+    # Validate invite code
+    if not INVITE_CODE:
+        raise ValueError("Registration is not configured — RSLI_INVITE_CODE not set")
+    if invite_code != INVITE_CODE:
+        raise ValueError("Invalid invite code")
+
+    # Validate fields
+    username = username.strip()
+    email = email.strip().lower()
+    if not username or len(username) < 3 or len(username) > 50:
+        raise ValueError("Username must be 3-50 characters")
+    if not email or "@" not in email:
+        raise ValueError("Invalid email address")
+    if not password or len(password) < 6:
+        raise ValueError("Password must be at least 6 characters")
+
+    # Check uniqueness
+    if db.query(User).filter(User.username == username).first():
+        raise ValueError("Username already taken")
+    if db.query(User).filter(User.email == email).first():
+        raise ValueError("Email already registered")
+
+    # Determine admin status
+    is_admin = bool(ADMIN_EMAIL and email == ADMIN_EMAIL.strip().lower())
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=hash_password(password),
+        is_admin=is_admin,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def authenticate_user(db: Session, username: str, password: str) -> User | None:
+    """Verify credentials and return user, or None if invalid."""
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not user.is_active:
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    # Update last_login
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+    return user
+
+
+def change_password(db: Session, user_id: int, current_password: str, new_password: str):
+    """Change a user's password. Raises ValueError on failure."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise ValueError("User not found")
+    if not verify_password(current_password, user.password_hash):
+        raise ValueError("Current password is incorrect")
+    if not new_password or len(new_password) < 6:
+        raise ValueError("New password must be at least 6 characters")
+    user.password_hash = hash_password(new_password)
+    db.commit()
+
+
+def reset_password(db: Session, admin_user_id: int, target_user_id: int) -> str:
+    """Admin resets another user's password. Returns temporary password."""
+    import secrets
+
+    admin = db.query(User).filter(User.id == admin_user_id).first()
+    if not admin or not admin.is_admin:
+        raise ValueError("Not authorized")
+    target = db.query(User).filter(User.id == target_user_id).first()
+    if not target:
+        raise ValueError("User not found")
+    if target.id == admin.id:
+        raise ValueError("Use change-password for your own account")
+
+    temp_password = secrets.token_urlsafe(12)
+    target.password_hash = hash_password(temp_password)
+    db.commit()
+    return temp_password
+
+
+def set_user_active(db: Session, admin_user_id: int, target_user_id: int, active: bool):
+    """Admin activates/deactivates a user."""
+    admin = db.query(User).filter(User.id == admin_user_id).first()
+    if not admin or not admin.is_admin:
+        raise ValueError("Not authorized")
+    target = db.query(User).filter(User.id == target_user_id).first()
+    if not target:
+        raise ValueError("User not found")
+    if target.id == admin.id:
+        raise ValueError("Cannot deactivate yourself")
+    target.is_active = active
+    db.commit()
+
+
+def get_all_users(db: Session) -> list[dict]:
+    """Return all users (admin view)."""
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return [u.to_dict(include_email=True) for u in users]
+
+
+def get_user_by_id(db: Session, user_id: int) -> User | None:
+    return db.query(User).filter(User.id == user_id).first()

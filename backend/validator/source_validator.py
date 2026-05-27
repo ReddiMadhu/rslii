@@ -156,7 +156,10 @@ async def validate_source_file(
     enable_llm: bool = False,
     filename: str = "",
     all_upload_columns_by_node: Optional[dict[str, list[str]]] = None,
+    db: Optional[Session] = None,
+    username: Optional[str] = None,
 ) -> dict[str, Any]:
+    from sqlalchemy.orm import Session
     store = store or SnapshotStore()
     key = snapshot_key(pipeline_filename, source_node_id)
     snapshot = store.load(key)
@@ -188,7 +191,7 @@ async def validate_source_file(
     )
 
     additional_names = [a["name"] for a in additional]
-    matcher = SemanticColumnMatcher(enable_llm=enable_llm, code=code)
+    matcher = SemanticColumnMatcher(enable_llm=enable_llm, code=code, db=db, username=username)
     missing_columns = []
     fuzzy_note = False
     llm_used_match = False
@@ -240,6 +243,8 @@ async def validate_source_file(
         missing_count=len(missing_columns),
         dtype_count=len(dtype_changes),
         enable_llm=enable_llm,
+        db=db,
+        username=username,
     )
 
     return {
@@ -272,7 +277,10 @@ async def validate_all_sources(
     *,
     enable_llm: bool = False,
     file_mapping: Optional[dict[str, str]] = None,
+    db: Optional[Session] = None,
+    username: Optional[str] = None,
 ) -> dict[str, Any]:
+    from sqlalchemy.orm import Session
     store = SnapshotStore()
     files: dict[str, Any] = {}
     file_mapping = file_mapping or {}
@@ -311,6 +319,8 @@ async def validate_all_sources(
             enable_llm=enable_llm,
             filename=str(logical),
             all_upload_columns_by_node=all_upload_columns_by_node,
+            db=db,
+            username=username,
         )
         files[sid] = result
 

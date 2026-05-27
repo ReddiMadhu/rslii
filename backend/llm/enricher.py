@@ -95,6 +95,9 @@ async def enrich_descriptions(
     *,
     temperature: float = 0.3,
     max_nodes_per_batch: int = 25,
+    session_id: Optional[str] = None,
+    db: Optional[Session] = None,
+    username: Optional[str] = None,
 ) -> tuple[list[dict], bool]:
     """
     Enrich node descriptions using LLM.
@@ -102,6 +105,10 @@ async def enrich_descriptions(
     Returns (enriched_nodes, llm_used).
     If LLM is not configured or fails, returns nodes unchanged with llm_used=False.
     """
+    from validator.pii_masker import LLMDataSanitizer
+    sanitizer = LLMDataSanitizer()
+    nodes, source_code = sanitizer.sanitize_for_llm(nodes, source_code)
+
     llm = get_resilient_llm(temperature=temperature, json_mode=True)
     if llm is None:
         logger.info("No LLM configured — skipping description enrichment")
@@ -131,6 +138,29 @@ async def enrich_descriptions(
 
             response = await llm.ainvoke(messages)
             raw = stringify_chat_content(response.content)
+
+            # Metadata and token usage extraction for audit trail
+            metadata = getattr(response, "response_metadata", {})
+            usage = metadata.get("token_usage") or metadata.get("usage_metadata") or {}
+            tokens = usage.get("total_tokens") or usage.get("total_billable_characters") or 0
+            model_name = metadata.get("model_name") or os.environ.get("GEMINI_MODEL") or os.environ.get("OPENAI_MODEL") or "unknown"
+
+            if db and username:
+                try:
+                    from audit.logger import log_llm_call
+                    prompt_text = f"System: {SYSTEM_PROMPT}\nUser: {user_msg}"
+                    await log_llm_call(
+                        db=db,
+                        session_id=session_id,
+                        username=username,
+                        prompt=prompt_text,
+                        response_content=raw,
+                        model_name=model_name,
+                        tokens=tokens,
+                    )
+                except Exception as ex:
+                    logger.warning("Failed to log LLM enrichment call: %s", ex)
+
             batch_descs = _parse_llm_response(raw, node_ids)
             all_descriptions.update(batch_descs)
 

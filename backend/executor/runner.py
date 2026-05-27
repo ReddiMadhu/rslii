@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import os
 import shutil
+import json
+import subprocess
+import sys
+import threading
 from typing import Callable, Optional
 
 from parser.ast_parser import ASTParser
@@ -45,6 +49,60 @@ def build_namespace(ctx: RSLIContext) -> dict:
     }
 
 
+def _kill_process_tree(pid: int) -> None:
+    import psutil
+    try:
+        parent = psutil.Process(pid)
+        for child in parent.children(recursive=True):
+            try:
+                child.kill()
+            except Exception:
+                pass
+        parent.kill()
+    except Exception:
+        pass
+
+
+def _monitor_process(
+    proc: subprocess.Popen,
+    timeout_sec: float,
+    mem_limit_mb: float,
+    limit_reached: dict[str, str | None],
+) -> None:
+    import psutil
+    import time
+
+    start_time = time.perf_counter()
+    try:
+        parent = psutil.Process(proc.pid)
+    except psutil.NoSuchProcess:
+        return
+
+    while proc.poll() is None:
+        elapsed = time.perf_counter() - start_time
+        if elapsed > timeout_sec:
+            limit_reached["type"] = "timeout"
+            _kill_process_tree(proc.pid)
+            break
+
+        try:
+            total_mem = parent.memory_info().rss
+            for child in parent.children(recursive=True):
+                try:
+                    total_mem += child.memory_info().rss
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+
+            if total_mem > mem_limit_mb * 1024 * 1024:
+                limit_reached["type"] = "memory"
+                _kill_process_tree(proc.pid)
+                break
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+        time.sleep(0.1)
+
+
 def execute_pipeline_sync(
     code: str,
     saved_paths_by_source_id: dict[str, str],
@@ -56,7 +114,7 @@ def execute_pipeline_sync(
     pipeline_filename: str = "pipeline.py",
 ) -> dict:
     """
-    Run instrumented pipeline in an existing workspace directory.
+    Run instrumented pipeline in an isolated subprocess with resource limits.
 
     ``temp_dir`` must contain ``uploads/`` (populated by caller) and will
     receive ``output/``. ``saved_paths_by_source_id`` maps ``source_N`` keys
@@ -101,79 +159,94 @@ def execute_pipeline_sync(
     instrument_module(parser.tree, parser.injection_steps, upload_by_node_id, output_dir)
     rewritten = unparse_module(parser.tree)
 
-    ctx = RSLIContext(nodes, edges, sse_callback=sse_callback, rename_maps=rename_maps)
-    ns = build_namespace(ctx)
-    ns["__name__"] = "__main__"
-    ns["__file__"] = "<rsli_pipeline>"
+    # Write rewritten_pipeline.py
+    rewritten_path = os.path.join(temp_dir, "rewritten_pipeline.py")
+    with open(rewritten_path, "w", encoding="utf-8") as f:
+        f.write(rewritten)
 
-    try:
-        exec(compile(rewritten, "<rsli_pipeline>", "exec"), ns, ns)
-    except Exception as e:
-        ctx.mark_current_failed(f"{type(e).__name__}: {e}")
-        ctx.mark_remaining_not_reached()
+    # Write config.json
+    config = {
+        "nodes": nodes,
+        "edges": edges,
+        "rename_maps": rename_maps,
+        "session_id": session_id,
+        "temp_dir": temp_dir,
+        "warnings": warnings,
+        "base_summary": base_summary,
+        "pipeline_filename": pipeline_filename,
+        "sources_meta": sources_meta,
+        "paths_for_exec": paths_for_exec,
+    }
+    config_path = os.path.join(temp_dir, "config.json")
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, default=str)
 
-    if os.path.isdir(output_dir):
-        try:
-            from validator.csv_export import prepare_dataframe_for_csv
+    # Prepare command to execute runner_entry.py
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    entry_script = os.path.join(backend_dir, "executor", "runner_entry.py")
 
-            import pandas as pd
-
-            for name in sorted(os.listdir(output_dir)):
-                fp = os.path.join(output_dir, name)
-                if not os.path.isfile(fp) or not name.lower().endswith(".csv"):
-                    continue
-                try:
-                    out_df = pd.read_csv(fp)
-                    prepare_dataframe_for_csv(out_df).to_csv(fp, index=False)
-                except Exception:
-                    pass
-        except ImportError:
-            pass
-
-    out_files = []
-    if os.path.isdir(output_dir):
-        for name in sorted(os.listdir(output_dir)):
-            fp = os.path.join(output_dir, name)
-            if os.path.isfile(fp):
-                out_files.append(
-                    {
-                        "name": name,
-                        "download_url": f"/api/download/{session_id}/{name}",
-                    }
-                )
-
-    result = ctx.build_final_result(
-        session_id,
-        temp_dir,
-        out_files,
-        warnings,
-        llm_used=False,
-        base_summary=base_summary,
+    # Spawn subprocess
+    process = subprocess.Popen(
+        [sys.executable, entry_script, config_path],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,  # Line-buffered
+        cwd=backend_dir,
     )
 
+    limit_reached = {"type": None}
+    monitor_thread = threading.Thread(
+        target=_monitor_process,
+        args=(process, 30.0, 512.0, limit_reached),
+        daemon=True,
+    )
+    monitor_thread.start()
+
+    non_prefixed_lines = []
+    # Read subprocess output line-by-line
     try:
-        from validator.source_validator import persist_snapshots_after_execution
+        while True:
+            line = process.stdout.readline()
+            if not line:
+                break
+            line_str = line.strip()
+            if line_str.startswith("__RSLI_SSE__:"):
+                parts = line_str.split(":", 2)
+                if len(parts) == 3:
+                    event = parts[1]
+                    try:
+                        data = json.loads(parts[2])
+                        if sse_callback:
+                            sse_callback(event, data)
+                    except Exception:
+                        pass
+            else:
+                non_prefixed_lines.append(line.rstrip())
+    finally:
+        process.wait()
+        monitor_thread.join()
 
-        persist_snapshots_after_execution(
-            pipeline_filename,
-            sources_meta,
-            paths_for_exec,
-            result.get("nodes") or nodes,
-        )
-    except Exception:
-        pass
+    # Check why the process exited
+    if limit_reached["type"] == "timeout":
+        raise TimeoutError("Pipeline execution timed out (limit: 30s)")
+    elif limit_reached["type"] == "memory":
+        raise MemoryError("Pipeline execution exceeded memory limit (limit: 512MB)")
 
-    if sse_callback:
-        s = result["summary"]
-        sse_callback(
-            "pipeline_complete",
-            {
-                "total_duration_ms": s.get("total_duration_ms", 0),
-                "nodes_completed": s.get("nodes_completed", 0),
-                "nodes_failed": s.get("nodes_failed", 0),
-                "nodes_skipped": s.get("nodes_skipped", 0),
-            },
-        )
+    if process.returncode != 0:
+        err_msg = "\n".join(non_prefixed_lines[-15:])
+        if not err_msg:
+            err_msg = f"Subprocess exited with return code {process.returncode}"
+        raise RuntimeError(err_msg)
+
+    # Read result.json
+    result_path = os.path.join(temp_dir, "result.json")
+    if not os.path.isfile(result_path):
+        raise RuntimeError("Subprocess completed but result.json was not found")
+
+    with open(result_path, "r", encoding="utf-8") as f:
+        result = json.load(f)
+
     return result
 
 

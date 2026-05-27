@@ -29,6 +29,7 @@ export function executeWithSSE({
   if (overrides && Object.keys(overrides).length > 0) {
     fd.append("overrides", JSON.stringify(overrides));
   }
+
   Object.entries(filesByFieldName || {}).forEach(([field, file]) => {
     fd.append(field, file);
   });
@@ -38,6 +39,9 @@ export function executeWithSSE({
     body: fd,
     signal: controller.signal,
     openWhenHidden: true,
+    fetch(input, init) {
+      return fetch(input, { ...init, credentials: "include" });
+    },
     async onopen(res) {
       if (res.ok && res.headers.get("content-type")?.includes("text/event-stream")) {
         onOpen?.();
@@ -96,3 +100,4 @@ export function executeWithSSE({
 
   return () => controller.abort();
 }
+

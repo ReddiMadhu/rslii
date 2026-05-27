@@ -64,3 +64,21 @@ dist-ssr/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+backend/*.db-journal
+
+# Local Snapshots (excluding the gitkeep file)
+backend/snapshots/*.json
+!backend/snapshots/.gitkeep
+
+# Temporary / Scratch Files
+implementation_plan.md.resolved
+compalince_resolve

@@ -2,6 +2,7 @@
 
 import ast
 import asyncio
+from datetime import datetime
 import json
 import math
 import os
@@ -16,17 +17,60 @@ try:
 except ImportError:
     pass  # python-dotenv is optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy.orm import Session
+
+from database.db import get_db, init_db
+from audit.logger import log_event
+from audit.blob_store import BlobAuditStore
+from database.models import User, AuditLog
+
+blob_store = BlobAuditStore(os.environ.get("AZURE_STORAGE_CONNECTION_STRING"))
+from auth.middleware import get_current_user, require_admin, CurrentUser
+from auth.service import (
+    register_user,
+    authenticate_user,
+    change_password,
+    reset_password,
+    set_user_active,
+    get_all_users,
+    COOKIE_NAME,
+    COOKIE_MAX_AGE,
+    COOKIE_SECURE,
+)
 
 app = FastAPI(
     title="RSLI API",
     description="Python ETL Visual Lineage Analyzer",
     version="0.1.0",
 )
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+# --- Auth Request/Response Models ---
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    invite_code: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 
 # session_id -> temp workspace (contains uploads/ and output/)
 _EXEC_SESSIONS: dict[str, str] = {}
@@ -105,6 +149,7 @@ class ColumnJourneySummaryRequest(BaseModel):
     direction: str  # "upstream" | "downstream"
     trace_nodes: list[dict]
     source_code: str
+    session_id: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -195,6 +240,307 @@ def _sse_bytes(event: str, payload: dict) -> bytes:
 
 # --- Routes ---
 
+@app.post("/api/auth/register")
+async def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    try:
+        user = register_user(
+            db,
+            username=req.username,
+            email=req.email,
+            password=req.password,
+            invite_code=req.invite_code,
+        )
+        log_event(
+            db,
+            event_type="user_register",
+            username=user.username,
+            summary={"email": user.email},
+        )
+        return {"message": "Account created", "username": user.username}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    user = authenticate_user(db, username=req.username, password=req.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    from auth.service import create_token
+    token = create_token(user)
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        max_age=COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE,
+    )
+    log_event(
+        db,
+        event_type="user_login",
+        username=user.username,
+        summary={"email": user.email},
+    )
+    return {"message": "Login successful", "username": user.username, "is_admin": user.is_admin}
+
+
+@app.post("/api/auth/logout")
+async def logout(response: Response):
+    response.delete_cookie(COOKIE_NAME)
+    return {"message": "Logged out successfully"}
+
+
+@app.get("/api/auth/me")
+async def get_me(current_user: CurrentUser = Depends(get_current_user)):
+    return {
+        "username": current_user.username,
+        "user_id": current_user.user_id,
+        "is_admin": current_user.is_admin,
+    }
+
+
+@app.post("/api/auth/change-password")
+async def change_user_password(
+    req: ChangePasswordRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        change_password(
+            db,
+            user_id=current_user.user_id,
+            current_password=req.current_password,
+            new_password=req.new_password,
+        )
+        return {"message": "Password changed successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/admin/users")
+async def get_users(
+    current_user: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    return get_all_users(db)
+
+
+@app.post("/api/admin/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    current_user: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    try:
+        temp_pw = reset_password(db, admin_user_id=current_user.user_id, target_user_id=user_id)
+        return {"temporary_password": temp_pw}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/admin/users/{user_id}/deactivate")
+async def deactivate_user(
+    user_id: int,
+    current_user: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    try:
+        set_user_active(db, admin_user_id=current_user.user_id, target_user_id=user_id, active=False)
+        return {"message": "User deactivated"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/admin/users/{user_id}/activate")
+async def activate_user(
+    user_id: int,
+    current_user: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    try:
+        set_user_active(db, admin_user_id=current_user.user_id, target_user_id=user_id, active=True)
+        return {"message": "User activated"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/audit")
+async def get_audit_trail(
+    page: int = 1,
+    page_size: int = 10,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    username: Optional[str] = None,
+    risk_level: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(AuditLog)
+    
+    if date_from:
+        try:
+            df = datetime.fromisoformat(date_from)
+            query = query.filter(AuditLog.timestamp >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = datetime.fromisoformat(date_to)
+            query = query.filter(AuditLog.timestamp <= dt)
+        except ValueError:
+            pass
+            
+    if username:
+        query = query.filter(AuditLog.username.ilike(f"%{username}%"))
+    if risk_level:
+        query = query.filter(AuditLog.risk_level == risk_level)
+    if status:
+        query = query.filter(AuditLog.execution_status == status)
+        
+    total = query.count()
+    items = query.order_by(AuditLog.timestamp.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    
+    return {
+        "items": [item.to_dict() for item in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@app.get("/api/audit/export")
+async def export_audit_trail(
+    format: str = "csv",
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    username: Optional[str] = None,
+    risk_level: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(AuditLog)
+    
+    if date_from:
+        try:
+            df = datetime.fromisoformat(date_from)
+            query = query.filter(AuditLog.timestamp >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = datetime.fromisoformat(date_to)
+            query = query.filter(AuditLog.timestamp <= dt)
+        except ValueError:
+            pass
+            
+    if username:
+        query = query.filter(AuditLog.username.ilike(f"%{username}%"))
+    if risk_level:
+        query = query.filter(AuditLog.risk_level == risk_level)
+    if status:
+        query = query.filter(AuditLog.execution_status == status)
+        
+    items = query.order_by(AuditLog.timestamp.desc()).all()
+    
+    if format == "json":
+        import io
+        data = [item.to_dict() for item in items]
+        bio = io.BytesIO(json.dumps(data, default=str, indent=2).encode("utf-8"))
+        return StreamingResponse(
+            bio,
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=rsli_audit_trail.json"},
+        )
+    else:
+        # Default: CSV
+        import csv
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Headers
+        writer.writerow([
+            "ID", "Event Type", "Username", "Session ID", "Timestamp", 
+            "Filename", "Risk Level", "Execution Status", "Duration (ms)", "Summary"
+        ])
+        
+        for item in items:
+            writer.writerow([
+                item.id,
+                item.event_type,
+                item.username,
+                item.session_id or "",
+                item.timestamp.isoformat() if item.timestamp else "",
+                item.filename or "",
+                item.risk_level or "",
+                item.execution_status or "",
+                item.duration_ms or "",
+                json.dumps(item.summary, default=str)
+            ])
+            
+        bio = io.BytesIO(output.getvalue().encode("utf-8"))
+        return StreamingResponse(
+            bio,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=rsli_audit_trail.csv"},
+        )
+
+
+@app.get("/api/audit/{log_id}/details")
+async def get_audit_details(
+    log_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    log_entry = db.query(AuditLog).filter(AuditLog.id == log_id).first()
+    if not log_entry:
+        raise HTTPException(status_code=404, detail="Log entry not found")
+        
+    details = {
+        "log": log_entry.to_dict(),
+        "files": [],
+        "overrides": {},
+        "llm_logs": [],
+    }
+    
+    session_id = log_entry.session_id
+    if session_id:
+        if blob_store.enabled:
+            # 1. Fetch file list from Blob
+            details["files"] = await blob_store.list_files(session_id, "output_files")
+            
+            # 2. Fetch overrides from Blob
+            overrides_data = await blob_store.download_file(session_id, "overrides", "overrides.json")
+            if overrides_data:
+                try:
+                    details["overrides"] = json.loads(overrides_data.decode("utf-8"))
+                except Exception:
+                    pass
+            
+            # 3. Fetch LLM logs from Blob
+            llm_files = await blob_store.list_files(session_id, "llm_logs")
+            for lf in llm_files:
+                lf_data = await blob_store.download_file(session_id, "llm_logs", lf)
+                if lf_data:
+                    try:
+                        details["llm_logs"].append(json.loads(lf_data.decode("utf-8")))
+                    except Exception:
+                        pass
+        else:
+            root = _EXEC_SESSIONS.get(session_id)
+            if root and os.path.isdir(root):
+                out_dir = os.path.join(root, "output")
+                if os.path.isdir(out_dir):
+                    details["files"] = os.listdir(out_dir)
+                
+    return details
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint — also reports LLM availability."""
@@ -207,7 +553,11 @@ async def health_check():
 
 
 @app.post("/api/parse")
-async def parse_script(request: ParseRequest):
+async def parse_script(
+    request: ParseRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """AST-only parse: discovered sources + DAG skeleton (v2 Phase 1)."""
     validation = validate_python_code(request.code)
     if not validation.get("valid"):
@@ -237,6 +587,37 @@ async def parse_script(request: ParseRequest):
         }
         if request.filename:
             summary["filename"] = request.filename
+
+        # Run Risk Classifier
+        from validator.risk_classifier import RiskClassifier
+        classifier = RiskClassifier()
+        risk_result = classifier.classify(request.code)
+
+        import hashlib
+        script_hash = hashlib.sha256(request.code.encode("utf-8")).hexdigest()
+
+        if risk_result.get("blocked"):
+            log_event(
+                db,
+                event_type="risk_blocked",
+                username=current_user.username,
+                script_hash=script_hash,
+                filename=request.filename or "pipeline.py",
+                risk_level=risk_result.get("level"),
+                execution_status="blocked",
+                summary={"reasons": risk_result.get("reasons")},
+            )
+        else:
+            log_event(
+                db,
+                event_type="script_parse",
+                username=current_user.username,
+                script_hash=script_hash,
+                filename=request.filename or "pipeline.py",
+                risk_level=risk_result.get("level"),
+                summary={"total_lines": len(request.code.splitlines())},
+            )
+
         return {
             "sources": sources,
             "skeleton": skeleton,
@@ -244,6 +625,7 @@ async def parse_script(request: ParseRequest):
             "edges": result["edges"],
             "summary": summary,
             "warnings": result["warnings"],
+            "risk": risk_result,
         }
     except Exception as e:
         import traceback
@@ -252,7 +634,7 @@ async def parse_script(request: ParseRequest):
 
 
 @app.post("/api/analyze")
-async def analyze(request: AnalyzeRequest):
+async def analyze(request: AnalyzeRequest, current_user: CurrentUser = Depends(get_current_user)):
     """Full static analysis + optional LLM (v1). For v2 parse-only, use ``POST /api/parse``."""
     # Step 1: Validate
     validation = validate_python_code(request.code)
@@ -346,6 +728,7 @@ async def _parse_upload_form(form) -> tuple[str, str, dict, list[dict], bool]:
 async def _save_uploads(form, sources: list, file_mapping: dict, uploads_dir: str) -> dict[str, str]:
     os.makedirs(uploads_dir, exist_ok=True)
     saved_paths: dict[str, str] = {}
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB limit
     for s in sources:
         if not s.get("requires_upload"):
             continue
@@ -353,16 +736,45 @@ async def _save_uploads(form, sources: list, file_mapping: dict, uploads_dir: st
         logical = file_mapping[sid]
         field = f"file_{logical}"
         uf = form.get(field)
-        raw = await uf.read()
+        if uf is None:
+            raise HTTPException(status_code=422, detail=f"Missing multipart field {field}")
+        
         dest = os.path.join(uploads_dir, os.path.basename(str(logical)))
+        total_bytes = 0
+        
+        # Reset file pointer just in case it was read elsewhere
+        await uf.seek(0)
+        
         with open(dest, "wb") as f:
-            f.write(raw)
+            while True:
+                # Read in chunks of 64KB
+                chunk = await uf.read(64 * 1024)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > MAX_FILE_SIZE:
+                    f.close()
+                    # Clean up the partially written file
+                    try:
+                        os.remove(dest)
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Upload of '{logical}' failed: exceeds maximum file size limit of 50MB"
+                    )
+                f.write(chunk)
+                
         saved_paths[sid] = dest
     return saved_paths
 
 
 @app.post("/api/validate-sources")
-async def validate_sources(request: Request):
+async def validate_sources(
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Validate uploaded source files against pipeline schema and snapshots."""
     form = await request.form()
     code, filename, file_mapping, sources, enable_llm = await _parse_upload_form(form)
@@ -389,6 +801,8 @@ async def validate_sources(request: Request):
             edges,
             enable_llm=enable_llm,
             file_mapping=file_mapping,
+            db=db,
+            username=current_user.username,
         )
         return out
     finally:
@@ -401,7 +815,11 @@ async def validate_sources(request: Request):
 
 
 @app.post("/api/execute")
-async def execute_pipeline(request: Request):
+async def execute_pipeline(
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Execute instrumented pipeline; stream SSE then final JSON result."""
     form = await request.form()
     code, filename, file_mapping, sources, enable_llm = await _parse_upload_form(form)
@@ -429,6 +847,19 @@ async def execute_pipeline(request: Request):
             saved_paths = await _save_uploads(form, sources, file_mapping, uploads)
 
             _EXEC_SESSIONS[session_id] = temp_dir
+
+            # Log execute request
+            import hashlib
+            script_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
+            log_event(
+                db,
+                event_type="script_execute",
+                username=current_user.username,
+                session_id=session_id,
+                script_hash=script_hash,
+                filename=filename,
+                summary={"overrides_applied": overrides},
+            )
 
             def worker() -> None:
                 try:
@@ -458,6 +889,16 @@ async def execute_pipeline(request: Request):
                 yield _sse_bytes(ev, data)
 
             if result_holder and isinstance(result_holder[0], dict) and "__error__" in result_holder[0]:
+                log_event(
+                    db,
+                    event_type="execution_complete",
+                    username=current_user.username,
+                    session_id=session_id,
+                    script_hash=script_hash,
+                    filename=filename,
+                    execution_status="failed",
+                    summary={"error": result_holder[0]["__error__"]},
+                )
                 yield _sse_bytes(
                     "node_error",
                     {"node_id": "", "error": result_holder[0]["__error__"]},
@@ -475,27 +916,62 @@ async def execute_pipeline(request: Request):
                 )
             else:
                 res = result_holder[0] if result_holder else None
+                if res:
+                    status = res.get("summary", {}).get("status", "success")
+                    duration_ms = res.get("summary", {}).get("duration_ms", 0.0)
+                    log_event(
+                        db,
+                        event_type="execution_complete",
+                        username=current_user.username,
+                        session_id=session_id,
+                        script_hash=script_hash,
+                        filename=filename,
+                        execution_status=status,
+                        duration_ms=duration_ms,
+                        summary={
+                            "total_nodes": len(res.get("nodes", [])),
+                            "output_files": res.get("output_files", []),
+                        },
+                    )
                 if res and enable_llm:
                     try:
                         from llm.enricher import enrich_descriptions
 
-                        nodes, llm_used = await enrich_descriptions(res["nodes"], code)
+                        nodes, llm_used = await enrich_descriptions(
+                            res["nodes"], 
+                            code, 
+                            session_id=session_id,
+                            db=db,
+                            username=current_user.username
+                        )
                         res["nodes"] = nodes
                         res["llm_used"] = llm_used
                     except Exception:
                         res["llm_used"] = False
                 if res:
                     yield _sse_bytes("result", res)
+
+            # Archival to Azure Blob Storage
+            if blob_store.enabled:
+                await blob_store.upload_session_files(session_id, temp_dir, overrides=overrides)
         finally:
-            if session_id in _EXEC_SESSIONS:
-                _schedule_session_cleanup(session_id)
-            elif os.path.isdir(temp_dir):
+            if blob_store.enabled:
                 try:
                     from executor.runner import cleanup_temp_dir
-
                     cleanup_temp_dir(temp_dir)
                 except Exception:
                     pass
+                _EXEC_SESSIONS.pop(session_id, None)
+            else:
+                if session_id in _EXEC_SESSIONS:
+                    _schedule_session_cleanup(session_id)
+                elif os.path.isdir(temp_dir):
+                    try:
+                        from executor.runner import cleanup_temp_dir
+
+                        cleanup_temp_dir(temp_dir)
+                    except Exception:
+                        pass
 
     return StreamingResponse(
         event_stream(),
@@ -514,10 +990,20 @@ _STATIC_HTM_XLSX_PATH = os.path.join(_STATIC_DIR, _STATIC_HTM_XLSX)
 
 
 @app.get("/api/download/static/claim-center-htm")
-async def download_static_htm_output():
+async def download_static_htm_output(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Serve bundled Claim Center HTM Excel (not tied to an execution session)."""
     if not os.path.isfile(_STATIC_HTM_XLSX_PATH):
         raise HTTPException(status_code=404, detail="Static HTM file not found")
+    log_event(
+        db,
+        event_type="file_download",
+        username=current_user.username,
+        filename=_STATIC_HTM_XLSX,
+        summary={"static": True},
+    )
     return FileResponse(
         _STATIC_HTM_XLSX_PATH,
         filename=_STATIC_HTM_XLSX,
@@ -526,19 +1012,56 @@ async def download_static_htm_output():
 
 
 @app.get("/api/download/{session_id}/{filename}")
-async def download_output(session_id: str, filename: str):
-    root = _EXEC_SESSIONS.get(session_id)
-    if not root:
-        raise HTTPException(status_code=404, detail="Unknown session")
+async def download_output(
+    session_id: str,
+    filename: str,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     safe = os.path.basename(filename)
-    path = os.path.join(root, "output", safe)
-    if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path, filename=safe, media_type="application/octet-stream")
+    root = _EXEC_SESSIONS.get(session_id)
+    path = os.path.join(root, "output", safe) if root else ""
+    
+    # 1. Try local file first
+    if path and os.path.isfile(path):
+        log_event(
+            db,
+            event_type="file_download",
+            username=current_user.username,
+            session_id=session_id,
+            filename=safe,
+            summary={"storage": "local"},
+        )
+        return FileResponse(path, filename=safe, media_type="application/octet-stream")
+        
+    # 2. Fall back to Azure Blob Storage
+    if blob_store.enabled:
+        data = await blob_store.download_file(session_id, "output_files", safe)
+        if data:
+            import io
+            log_event(
+                db,
+                event_type="file_download",
+                username=current_user.username,
+                session_id=session_id,
+                filename=safe,
+                summary={"storage": "azure_blob"},
+            )
+            return StreamingResponse(
+                io.BytesIO(data),
+                media_type="application/octet-stream",
+                headers={"Content-Disposition": f"attachment; filename={safe}"}
+            )
+            
+    raise HTTPException(status_code=404, detail="File not found")
 
 
 @app.post("/api/column-journey-summary")
-async def column_journey_summary(request: ColumnJourneySummaryRequest):
+async def column_journey_summary(
+    request: ColumnJourneySummaryRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Generate GenAI or template summaries for a column's journey."""
     from llm.column_journey_enricher import (
         enrich_column_journey,
@@ -556,6 +1079,9 @@ async def column_journey_summary(request: ColumnJourneySummaryRequest):
             request.direction,
             request.trace_nodes,
             request.source_code,
+            session_id=request.session_id,
+            db=db,
+            username=current_user.username,
         )
         if result.get("llm_used") and result.get("overall_summary"):
             return result

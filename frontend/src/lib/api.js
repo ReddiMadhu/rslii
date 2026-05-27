@@ -3,7 +3,9 @@ import { getApiBase } from "./apiBase";
 const API_BASE = getApiBase();
 
 export async function healthCheck() {
-  const res = await fetch(`${API_BASE}/health`);
+  const res = await fetch(`${API_BASE}/health`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Backend unreachable");
   return res.json();
 }
@@ -12,6 +14,7 @@ export async function analyzeCode({ code, filename, enableLlm = false }) {
   const res = await fetch(`${API_BASE}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({
       code,
       filename,
@@ -37,6 +40,7 @@ export async function parseCode({ code, filename }) {
   const res = await fetch(`${API_BASE}/parse`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ code, filename }),
   });
   if (!res.ok) {
@@ -77,6 +81,7 @@ export async function validateSources({
 
   const res = await fetch(`${API_BASE}/validate-sources`, {
     method: "POST",
+    credentials: "include",
     body: fd,
   });
   if (!res.ok) {

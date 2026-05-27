@@ -67,11 +67,16 @@ def template_key_alerts(columns: list[dict], row_count: int = 0) -> list[dict[st
     return alerts
 
 
+from sqlalchemy.orm import Session
+import os
+
 async def llm_findings(
     profile: dict,
     code: str,
     snapshot: Optional[dict],
     enable_llm: bool,
+    db: Optional[Session] = None,
+    username: Optional[str] = None,
 ) -> tuple[list[dict], list[dict], bool]:
     if not enable_llm:
         return [], [], False
@@ -99,6 +104,29 @@ Return JSON: {{"key_findings": [{{"finding": "", "impact": ""}}], "key_alerts": 
     try:
         resp = await llm.ainvoke(prompt)
         text = resp.content if hasattr(resp, "content") else str(resp)
+
+        # Metadata and token usage extraction for audit trail
+        metadata = getattr(resp, "response_metadata", {})
+        usage = metadata.get("token_usage") or metadata.get("usage_metadata") or {}
+        tokens = usage.get("total_tokens") or usage.get("total_billable_characters") or 0
+        model_name = metadata.get("model_name") or os.environ.get("GEMINI_MODEL") or os.environ.get("OPENAI_MODEL") or "unknown"
+
+        if db and username:
+            try:
+                from audit.logger import log_llm_call
+                await log_llm_call(
+                    db=db,
+                    session_id=None,
+                    username=username,
+                    prompt=prompt,
+                    response_content=text,
+                    model_name=model_name,
+                    tokens=tokens,
+                )
+            except Exception as ex:
+                import logging
+                logging.getLogger("rsli").warning("Failed to log LLM findings call: %s", ex)
+
         m = re.search(r"\{[\s\S]*\}", text)
         if not m:
             return [], [], False
@@ -119,9 +147,11 @@ async def generate_findings(
     missing_count: int = 0,
     dtype_count: int = 0,
     enable_llm: bool = False,
+    db: Optional[Session] = None,
+    username: Optional[str] = None,
 ) -> tuple[list[dict], list[dict], bool]:
     template_kf = template_key_findings(additional_count, missing_count, dtype_count)
-    kf_llm, ka_llm, used = await llm_findings(profile, code, snapshot, enable_llm)
+    kf_llm, ka_llm, used = await llm_findings(profile, code, snapshot, enable_llm, db=db, username=username)
     if used and kf_llm:
         kf = _filter_pipeline_findings(kf_llm)
         if not kf:

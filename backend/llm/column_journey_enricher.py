@@ -115,6 +115,9 @@ def _parse_response(raw: str, trace_ids: set[str]) -> dict:
     }
 
 
+from typing import Any, Optional
+from sqlalchemy.orm import Session
+
 async def enrich_column_journey(
     column: str,
     direction: str,
@@ -122,6 +125,9 @@ async def enrich_column_journey(
     source_code: str,
     *,
     temperature: float = 0.3,
+    session_id: Optional[str] = None,
+    db: Optional[Session] = None,
+    username: Optional[str] = None,
 ) -> dict:
     """
     Generate GenAI summaries for a column's journey.
@@ -133,6 +139,10 @@ async def enrich_column_journey(
             "llm_used": True/False
         }
     """
+    from validator.pii_masker import LLMDataSanitizer
+    sanitizer = LLMDataSanitizer()
+    trace_nodes, source_code = sanitizer.sanitize_for_llm(trace_nodes, source_code)
+
     llm = get_resilient_llm(temperature=temperature, json_mode=True)
     if llm is None:
         logger.info("No LLM configured — skipping column journey enrichment")
@@ -154,6 +164,29 @@ async def enrich_column_journey(
 
         response = await llm.ainvoke(messages)
         raw = stringify_chat_content(response.content)
+
+        # Metadata and token usage extraction for audit trail
+        metadata = getattr(response, "response_metadata", {})
+        usage = metadata.get("token_usage") or metadata.get("usage_metadata") or {}
+        tokens = usage.get("total_tokens") or usage.get("total_billable_characters") or 0
+        model_name = metadata.get("model_name") or os.environ.get("GEMINI_MODEL") or os.environ.get("OPENAI_MODEL") or "unknown"
+
+        if db and username:
+            try:
+                from audit.logger import log_llm_call
+                prompt_text = f"System: {SYSTEM_PROMPT}\nUser: {user_msg}"
+                await log_llm_call(
+                    db=db,
+                    session_id=session_id,
+                    username=username,
+                    prompt=prompt_text,
+                    response_content=raw,
+                    model_name=model_name,
+                    tokens=tokens,
+                )
+            except Exception as ex:
+                logger.warning("Failed to log LLM column journey call: %s", ex)
+
         parsed = _parse_response(raw, trace_ids)
 
         logger.info(
