@@ -23,13 +23,13 @@ export default function UserMenu({ onChangePasswordClick, onManageUsersClick }) 
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 px-1.5 py-0.75 rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(15,15,22,0.6)] text-[#a0a0b8] hover:text-white hover:border-[rgba(251,78,11,0.3)] transition-all cursor-pointer text-[7px]"
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(15,15,22,0.6)] text-[#a0a0b8] hover:text-white hover:border-[rgba(251,78,11,0.3)] transition-all cursor-pointer text-[11px]"
       >
-        <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#fb4e0b] to-[#ff814d] flex items-center justify-center text-white font-bold text-[5px]">
+        <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-br from-[#fb4e0b] to-[#ff814d] flex items-center justify-center text-white font-bold text-[9px]">
           {user.username.charAt(0).toUpperCase()}
         </div>
-        <span className="font-medium max-w-[60px] truncate">{user.username}</span>
-        <ChevronDown size={7} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        <span className="font-medium max-w-[90px] truncate">{user.username}</span>
+        <ChevronDown size={10} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {isOpen && (

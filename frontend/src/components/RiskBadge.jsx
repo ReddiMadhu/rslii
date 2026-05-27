@@ -11,16 +11,16 @@ export default function RiskBadge() {
   const { level, reasons, blocked } = parseResult.risk;
 
   let badgeColor = "bg-[rgba(34,197,94,0.08)] border-[#22c55e] text-[#22c55e]";
-  let icon = <ShieldCheck size={7} />;
+  let icon = <ShieldCheck size={10} />;
   let label = "Low Risk";
 
   if (level === "medium") {
     badgeColor = "bg-[rgba(234,179,8,0.08)] border-[#eab308] text-[#eab308]";
-    icon = <Shield size={7} />;
+    icon = <Shield size={10} />;
     label = "Medium Risk";
   } else if (level === "high") {
     badgeColor = "bg-[rgba(239,68,68,0.08)] border-[#ef4444] text-[#ef4444]";
-    icon = <ShieldAlert size={7} />;
+    icon = <ShieldAlert size={10} />;
     label = blocked ? "Blocked (High Risk)" : "High Risk";
   }
 
@@ -31,7 +31,7 @@ export default function RiskBadge() {
       onMouseLeave={() => setShowTooltip(false)}
     >
       <div 
-        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg border text-[6px] font-semibold select-none cursor-help transition-all ${badgeColor}`}
+        className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[9px] font-semibold select-none cursor-help transition-all ${badgeColor}`}
       >
         {icon}
         <span>{label}</span>

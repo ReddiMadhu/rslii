@@ -444,6 +444,42 @@ export default function AuditTrail({ onClose }) {
                                     </p>
                                   )}
                                 </div>
+
+                                {/* LLM Call Detail Section */}
+                                {item.event_type === "llm_call" && (
+                                  <div className="col-span-full border-t border-[rgba(255,255,255,0.06)] pt-4 mt-2 space-y-4">
+                                    <h5 className="font-bold text-white text-xs">AI Call Details (Prompt &amp; Response)</h5>
+                                    {detail.llm_logs && detail.llm_logs.length > 0 ? (
+                                      detail.llm_logs.map((log, idx) => (
+                                        <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-[#0a0a0f] border border-[rgba(255,255,255,0.05)] rounded-xl">
+                                          <div>
+                                            <div className="text-[10px] font-bold text-[#fb4e0b] uppercase mb-1">Prompt / Input</div>
+                                            <pre className="font-mono text-[10px] text-[#a0a0b8] whitespace-pre-wrap max-h-60 overflow-y-auto leading-relaxed">{log.prompt}</pre>
+                                          </div>
+                                          <div className="border-t md:border-t-0 md:border-l border-[rgba(255,255,255,0.06)] pt-3 md:pt-0 md:pl-4">
+                                            <div className="text-[10px] font-bold text-[#22c55e] uppercase mb-1">Response / Output</div>
+                                            <pre className="font-mono text-[10px] text-white whitespace-pre-wrap max-h-60 overflow-y-auto leading-relaxed">{log.response}</pre>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-[#0a0a0f] border border-[rgba(255,255,255,0.05)] rounded-xl">
+                                        <div>
+                                          <div className="text-[10px] font-bold text-[#fb4e0b] uppercase mb-1">Prompt Snippet (Input)</div>
+                                          <pre className="font-mono text-[10px] text-[#a0a0b8] whitespace-pre-wrap leading-relaxed">
+                                            {item.summary?.prompt_snippet || "No prompt summary found"}
+                                          </pre>
+                                        </div>
+                                        <div className="border-t md:border-t-0 md:border-l border-[rgba(255,255,255,0.06)] pt-3 md:pt-0 md:pl-4">
+                                          <div className="text-[10px] font-bold text-[#22c55e] uppercase mb-1">Response Snippet (Output)</div>
+                                          <pre className="font-mono text-[10px] text-white whitespace-pre-wrap leading-relaxed">
+                                            {item.summary?.response_snippet || "No response summary found"}
+                                          </pre>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <p className="text-[#666677] italic text-xs py-2">Details not available.</p>

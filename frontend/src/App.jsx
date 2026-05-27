@@ -34,7 +34,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-      className="relative p-1 rounded-xl transition-all duration-300 hover:scale-105 group overflow-hidden"
+      className="relative p-1.5 rounded-xl transition-all duration-300 hover:scale-105 group overflow-hidden"
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border)",
@@ -44,9 +44,9 @@ function ThemeToggle() {
     >
       <div className="absolute inset-0 bg-gradient-to-tr from-[var(--primary)] to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
       {theme === "dark" ? (
-        <Sun size={9} className="group-hover:text-[var(--primary)] transition-colors" />
+        <Sun size={14} className="group-hover:text-[var(--primary)] transition-colors" />
       ) : (
-        <Moon size={9} className="group-hover:text-[var(--primary)] transition-colors" />
+        <Moon size={14} className="group-hover:text-[var(--primary)] transition-colors" />
       )}
     </button>
   );
@@ -56,7 +56,7 @@ function TabButton({ active, icon: Icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="relative flex items-center gap-1 px-2 py-1 rounded-lg text-[7px] font-semibold transition-all duration-300 overflow-hidden"
+      className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-300 overflow-hidden"
       style={{
         background: active ? "var(--bg-card)" : "transparent",
         color: active ? "var(--primary)" : "var(--text-muted)",
@@ -67,7 +67,7 @@ function TabButton({ active, icon: Icon, label, onClick }) {
       {active && (
         <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--primary)" }} />
       )}
-      <Icon size={8} className={active ? "animate-pulse" : ""} />
+      <Icon size={12} className={active ? "animate-pulse" : ""} />
       {label}
     </button>
   );
@@ -219,15 +219,15 @@ function App() {
       style={{ background: "var(--bg-primary)" }}
     >
       <header
-        className="flex items-center justify-between px-6 py-1.5 sticky top-0 z-50"
+        className="flex items-center justify-between px-6 py-2 sticky top-0 z-50"
         style={{
           borderBottom: "1px solid var(--border)",
           background: "var(--bg-glass)",
           backdropFilter: "blur(20px)",
         }}
       >
-        <div className="flex items-center gap-1.5">
-          <img src="/etlpulse_ai_logo.svg" alt="ETLPulse.AI" className="h-4 w-auto" />
+        <div className="flex items-center gap-2">
+          <img src="/etlpulse_ai_logo.svg" alt="ETLPulse.AI" className="h-6 w-auto" />
 
           {showTabs && !showAdminConsole && !showAuditTrail && (
             <div
@@ -249,7 +249,7 @@ function App() {
               <button
                 onClick={() => appState === APP_STATES.RESULTS && setActiveTab("column-lineage")}
                 disabled={appState !== APP_STATES.RESULTS}
-                className="relative flex items-center gap-1 px-2 py-1 rounded-lg text-[7px] font-semibold transition-all duration-300 overflow-hidden"
+                className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-300 overflow-hidden"
                 style={{
                   background: activeTab === "column-lineage" ? "var(--bg-card)" : "transparent",
                   color: appState !== APP_STATES.RESULTS
@@ -267,39 +267,39 @@ function App() {
                 {activeTab === "column-lineage" && (
                   <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--primary)" }} />
                 )}
-                <Columns3 size={8} className={activeTab === "column-lineage" ? "animate-pulse" : ""} />
+                <Columns3 size={12} className={activeTab === "column-lineage" ? "animate-pulse" : ""} />
                 Column-level Journey
               </button>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {appState === APP_STATES.RESULTS && !showAdminConsole && !showAuditTrail && (
             <button
               onClick={() => setAppState(APP_STATES.SOURCE_MAPPING)}
-              className="flex items-center gap-1 px-1.5 py-0.75 rounded-xl text-[6px] font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[9px] font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
               style={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border)",
                 color: "var(--text-secondary)",
               }}
             >
-              <RefreshCw size={6} className="group-hover:text-[var(--primary)] transition-colors" />
+              <RefreshCw size={10} className="group-hover:text-[var(--primary)] transition-colors" />
               <span className="group-hover:text-[var(--text-primary)] transition-colors">Re-execute</span>
             </button>
           )}
           {(result || parseResult) && !showAdminConsole && !showAuditTrail && (
             <button
               onClick={reset}
-              className="flex items-center gap-1 px-1.5 py-0.75 rounded-xl text-[6px] font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[9px] font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
               style={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border)",
                 color: "var(--text-secondary)",
               }}
             >
-              <RotateCcw size={6} className="group-hover:text-[var(--primary)] transition-colors" />
+              <RotateCcw size={10} className="group-hover:text-[var(--primary)] transition-colors" />
               <span className="group-hover:text-[var(--text-primary)] transition-colors">New Analysis</span>
             </button>
           )}
@@ -310,14 +310,14 @@ function App() {
                 setShowAuditTrail(true);
                 setShowAdminConsole(false);
               }}
-              className="flex items-center gap-1 px-1.5 py-0.75 rounded-xl text-[6px] font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[9px] font-semibold transition-all duration-300 hover:-translate-y-0.5 group"
               style={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border)",
                 color: "var(--text-secondary)",
               }}
             >
-              <ClipboardList size={6} className="group-hover:text-[var(--primary)] transition-colors" />
+              <ClipboardList size={10} className="group-hover:text-[var(--primary)] transition-colors" />
               <span className="group-hover:text-[var(--text-primary)] transition-colors">Audit Trail</span>
             </button>
           )}
