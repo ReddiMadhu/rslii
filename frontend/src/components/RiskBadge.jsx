@@ -1,6 +1,6 @@
 import { useState } from "react";
 import useAnalysisStore from "../store/useAnalysisStore";
-import { ShieldCheck, ShieldAlert, ShieldWarning, HelpCircle } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Shield, HelpCircle } from "lucide-react";
 
 export default function RiskBadge() {
   const parseResult = useAnalysisStore((s) => s.parseResult);
@@ -16,7 +16,7 @@ export default function RiskBadge() {
 
   if (level === "medium") {
     badgeColor = "bg-[rgba(234,179,8,0.08)] border-[#eab308] text-[#eab308]";
-    icon = <ShieldWarning size={14} />;
+    icon = <Shield size={14} />;
     label = "Medium Risk";
   } else if (level === "high") {
     badgeColor = "bg-[rgba(239,68,68,0.08)] border-[#ef4444] text-[#ef4444]";
