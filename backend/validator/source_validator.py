@@ -69,6 +69,57 @@ def _compare_snapshot_columns(
     return additional, missing_snap, dtype_changes
 
 
+def _compare_snapshot_picklists(
+    current_profile: dict,
+    snapshot: Optional[dict],
+) -> list[dict]:
+    """Detect value-level drift in low-cardinality columns.
+
+    Compares current unique values against snapshot baseline and reports
+    new values (potential schema/business-rule changes) and retired values.
+    """
+    if not snapshot:
+        return []
+
+    prev_columns = {c["name"]: c for c in snapshot.get("columns") or []}
+    drifts = []
+
+    for col_info in current_profile.get("columns", []):
+        name = col_info["name"]
+        curr_picklist = col_info.get("picklist")
+        prev_col = prev_columns.get(name)
+        if not curr_picklist or not prev_col:
+            continue
+        prev_picklist = prev_col.get("picklist")
+        if not prev_picklist:
+            continue
+
+        curr_values = set(curr_picklist.get("values", []))
+        prev_values = set(prev_picklist.get("values", []))
+
+        new_values = sorted(curr_values - prev_values)
+        retired_values = sorted(prev_values - curr_values)
+
+        if new_values or retired_values:
+            parts = []
+            if new_values:
+                parts.append(f"new values: {', '.join(new_values[:5])}")
+            if retired_values:
+                parts.append(f"retired values: {', '.join(retired_values[:5])}")
+            msg = f"Column '{name}' picklist drift detected: {'; '.join(parts)}."
+
+            drifts.append({
+                "column": name,
+                "new_values": new_values,
+                "retired_values": retired_values,
+                "new_count": len(new_values),
+                "retired_count": len(retired_values),
+                "severity": "warning" if new_values else "info",
+                "message": msg,
+            })
+    return drifts
+
+
 def _collect_missing_column_names(
     expected_in_upload: set[str],
     missing_snap: list[dict],
@@ -173,6 +224,9 @@ async def validate_source_file(
         current_names, current_dtypes, snapshot
     )
 
+    # Picklist (value-level) drift detection
+    picklist_drifts = _compare_snapshot_picklists(profile, snapshot)
+
     provenance = required_columns_for_source(
         source_node_id,
         list(current_names),
@@ -247,6 +301,16 @@ async def validate_source_file(
         username=username,
     )
 
+    baseline_cols = None
+    baseline_col_count = None
+    if snapshot:
+        snap_columns = snapshot.get("columns") or []
+        baseline_cols = [
+            {"name": c["name"], "dtype": c.get("dtype", "unknown")}
+            for c in snap_columns
+        ]
+        baseline_col_count = len(snap_columns)
+
     return {
         "source_id": source_id,
         "node_id": source_node_id,
@@ -261,7 +325,10 @@ async def validate_source_file(
         "additional_columns": additional,
         "missing_columns": missing_columns,
         "dtype_changes": dtype_changes,
+        "picklist_drifts": picklist_drifts,
         "has_previous_snapshot": snapshot is not None,
+        "baseline_columns": baseline_cols,
+        "baseline_column_count": baseline_col_count,
         "llm_used": enable_llm and (llm_findings_used or llm_used_match),
         "fuzzy_fallback_note": fuzzy_note,
     }
@@ -383,7 +450,14 @@ def persist_snapshots_after_execution(
         store.save(key, snap)
 
 
-def parse_and_extract(code: str) -> tuple[list[dict], list[dict], list[dict]]:
-    parser = ASTParser(code)
+def parse_and_extract(code: str, *, language: str = "python") -> tuple[list[dict], list[dict], list[dict]]:
+    if language == "scala":
+        from parser.scala_parser import ScalaSparkParser
+        parser = ScalaSparkParser(code)
+    elif language == "sql":
+        from parser.sql_parser import SparkSQLParser
+        parser = SparkSQLParser(code)
+    else:
+        parser = ASTParser(code)
     result = parser.parse()
     return parser.extract_sources(), result["nodes"], result["edges"]

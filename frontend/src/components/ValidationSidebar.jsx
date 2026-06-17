@@ -1,4 +1,4 @@
-import { ChevronDown, FileCheck, AlertCircle } from "lucide-react";
+import { ChevronDown, FileCheck, AlertCircle, Database } from "lucide-react";
 import { cn } from "../lib/utils";
 import { fileNeedsAction } from "../lib/validationUtils";
 
@@ -7,7 +7,11 @@ export default function ValidationSidebar({
   selectedSourceId,
   onSelectSource,
   overrides,
+  selectedData,
 }) {
+  const baselineCols = selectedData?.baseline_columns;
+  const baselineCount = selectedData?.baseline_column_count;
+
   return (
     <aside
       className="w-56 shrink-0 flex flex-col gap-2"
@@ -79,6 +83,112 @@ export default function ValidationSidebar({
             </details>
           );
         })}
+      </div>
+
+      {/* ── Baseline Schema Table ── */}
+      <div className="mt-3">
+        <div className="flex items-center gap-1.5 px-1 mb-1.5">
+          <Database size={11} style={{ color: "var(--primary)" }} />
+          <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+            Baseline Schema
+          </p>
+          {baselineCount != null && (
+            <span
+              className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full ml-auto"
+              style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e" }}
+            >
+              {baselineCount} cols
+            </span>
+          )}
+        </div>
+
+        {!baselineCols ? (
+          <div
+            className="px-3 py-3 rounded-xl text-[10px] text-center"
+            style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              color: "var(--text-muted)",
+            }}
+          >
+            No baseline established yet
+          </div>
+        ) : baselineCols.length === 0 ? (
+          <div
+            className="px-3 py-3 rounded-xl text-[10px] text-center"
+            style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              color: "var(--text-muted)",
+            }}
+          >
+            Baseline has no columns
+          </div>
+        ) : (
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px]" style={{ minWidth: 180 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                    <th
+                      className="text-left px-2.5 py-1.5 font-semibold"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Column
+                    </th>
+                    <th
+                      className="text-left px-2.5 py-1.5 font-semibold"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Type
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {baselineCols.map((col, i) => (
+                    <tr
+                      key={col.name}
+                      style={{
+                        borderBottom:
+                          i < baselineCols.length - 1
+                            ? "1px solid var(--border)"
+                            : "none",
+                      }}
+                    >
+                      <td
+                        className="px-2.5 py-1.5 font-medium truncate"
+                        style={{ color: "var(--text-primary)", maxWidth: 110 }}
+                        title={col.name}
+                      >
+                        {col.name}
+                      </td>
+                      <td
+                        className="px-2.5 py-1.5"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <span
+                          className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium"
+                          style={{
+                            background: "var(--bg-secondary)",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          {col.dtype}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

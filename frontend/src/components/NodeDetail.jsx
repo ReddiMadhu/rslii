@@ -45,6 +45,28 @@ export default function NodeDetail({ result }) {
   const isSource = useMemo(() => !result?.edges?.some((e) => e.target === node.id), [result, node.id]);
   const isMerge = useMemo(() => node.method === "merge" || node.method === "join" || node.method === "concat", [node.method]);
 
+  /* ── hasData flags for info icon on each accordion ── */
+  const hasColumnChanges = useMemo(() => {
+    return (
+      (rt.cols_derived || []).length > 0 ||
+      (rt.cols_joined || []).length > 0 ||
+      (rt.cols_removed || []).length > 0 ||
+      Object.keys(rt.cols_renamed || {}).length > 0 ||
+      Object.keys(rt.cols_transformed || {}).length > 0
+    );
+  }, [rt]);
+  const hasSchema = useMemo(() => {
+    const before = rt.dtypes_before || {};
+    const after = rt.dtypes_after || {};
+    return Object.keys(before).length > 0 || Object.keys(after).length > 0;
+  }, [rt]);
+  const hasSampleData = useMemo(() => {
+    return (
+      (Array.isArray(rt.sample_output) && rt.sample_output.length > 0) ||
+      (Array.isArray(rt.sample_input) && rt.sample_input.length > 0)
+    );
+  }, [rt]);
+
   // For merge nodes, find the variable names of the two input DataFrames from edges
   const mergeInputs = useMemo(() => {
     if (!isMerge || !result?.edges) return [];
@@ -82,7 +104,7 @@ export default function NodeDetail({ result }) {
       </div>
 
       {/* ── Metrics (current-state) ── */}
-      <AccordionSection title="Metrics" icon={BarChart2} defaultOpen>
+      <AccordionSection title="Metrics" icon={BarChart2} defaultOpen hasData>
         <div className="text-[11px] space-y-1" style={{ color: "var(--text-secondary)" }}>
           <div className="flex items-center gap-2">
             <span>
@@ -120,12 +142,12 @@ export default function NodeDetail({ result }) {
 
       {/* ── Column Changes (colour-coded categories) ── */}
       {!isSource && (
-        <AccordionSection title="Column Level Changes" icon={Columns} defaultOpen>
+        <AccordionSection title="Column Level Changes" icon={Columns} defaultOpen hasData={hasColumnChanges}>
           <ColumnChangeDetail rt={rt} />
         </AccordionSection>
       )}
 
-      <AccordionSection title="Schema" icon={Table2}>
+      <AccordionSection title="Schema" icon={Table2} hasData={hasSchema}>
         <SchemaView
           before={rt.dtypes_before}
           after={rt.dtypes_after}
@@ -139,7 +161,7 @@ export default function NodeDetail({ result }) {
       </AccordionSection>
 
       {/* ── Sample data (colour-coded headers) ── */}
-      <AccordionSection title="Sample data" icon={Table2}>
+      <AccordionSection title="Sample data" icon={Table2} hasData={hasSampleData}>
         <div className="flex gap-2 mb-2">
           <button
             type="button"

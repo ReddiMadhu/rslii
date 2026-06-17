@@ -184,6 +184,7 @@ export default function SourceValidation({ llmAvailable = false }) {
           selectedSourceId={activeSourceId}
           onSelectSource={setSelectedSourceId}
           overrides={validationOverrides}
+          selectedData={selectedData}
         />
 
         <main
