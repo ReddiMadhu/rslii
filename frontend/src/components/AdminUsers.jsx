@@ -79,12 +79,12 @@ export default function AdminUsers({ onClose }) {
           <ShieldAlert size={20} className="text-[#fb4e0b]" />
           <div>
             <h2 className="text-lg font-bold text-white leading-tight">User Management</h2>
-            <p className="text-xs text-[#a0a0b8] mt-0.5">Admin tools to reset passwords and manage access.</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">Admin tools to reset passwords and manage access.</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.06)] hover:border-[rgba(251,78,11,0.3)] bg-[rgba(15,15,22,0.4)] text-[#a0a0b8] hover:text-white transition-all text-xs font-semibold cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.06)] hover:border-[rgba(251,78,11,0.3)] bg-[rgba(15,15,22,0.4)] text-[var(--text-secondary)] hover:text-white transition-all text-xs font-semibold cursor-pointer"
         >
           <ArrowLeft size={14} />
           Back to App
@@ -105,13 +105,13 @@ export default function AdminUsers({ onClose }) {
           <div className="w-full max-w-sm rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#0f0f16] shadow-2xl p-6 text-center animate-slide-up">
             <KeyRound size={32} className="mx-auto text-[#22c55e] mb-3" />
             <h3 className="text-sm font-bold text-white mb-2">Temporary Password Generated</h3>
-            <p className="text-xs text-[#a0a0b8] mb-4">
+            <p className="text-xs text-[var(--text-secondary)] mb-4">
               Password for user <strong className="text-white">{tempPassUser}</strong> has been reset.
             </p>
             <div className="p-3 bg-[#0a0a0f] border border-[rgba(255,255,255,0.06)] rounded-xl font-mono text-white text-sm font-bold select-all mb-4">
               {tempPassword}
             </div>
-            <p className="text-[10px] text-[#666677] mb-5">
+            <p className="text-[10px] text-[var(--text-muted)] mb-5">
               Copy this password and share it securely. The user will be prompted to change it.
             </p>
             <button
@@ -131,13 +131,13 @@ export default function AdminUsers({ onClose }) {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <Loader2 size={24} className="animate-spin text-[#fb4e0b]" />
-          <span className="text-xs text-[#a0a0b8]">Fetching users registry...</span>
+          <span className="text-xs text-[var(--text-secondary)]">Fetching users registry...</span>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-[rgba(255,255,255,0.06)]">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-[rgba(255,255,255,0.02)] text-[#666677] uppercase tracking-wider font-bold border-b border-[rgba(255,255,255,0.06)]">
+              <tr className="bg-[rgba(255,255,255,0.02)] text-[var(--text-muted)] uppercase tracking-wider font-bold border-b border-[rgba(255,255,255,0.06)]">
                 <th className="p-4">Username</th>
                 <th className="p-4">Email</th>
                 <th className="p-4">Created At</th>
@@ -152,7 +152,7 @@ export default function AdminUsers({ onClose }) {
                 return (
                   <tr 
                     key={u.id} 
-                    className="border-b border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.01)] text-[#a0a0b8]"
+                    className="border-b border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.01)] text-[var(--text-secondary)]"
                   >
                     <td className="p-4 font-semibold text-white flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-[rgba(255,255,255,0.04)] flex items-center justify-center text-[10px] text-white">

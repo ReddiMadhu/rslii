@@ -56,7 +56,7 @@ export default function ChangePasswordModal({ onClose }) {
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-[#666677] hover:text-white transition-colors cursor-pointer"
+          className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-white transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
@@ -65,7 +65,7 @@ export default function ChangePasswordModal({ onClose }) {
           <KeyRound size={18} className="text-[#fb4e0b]" />
           Change Password
         </h3>
-        <p className="text-xs text-[#a0a0b8] mb-5">Ensure your account remains secure.</p>
+        <p className="text-xs text-[var(--text-secondary)] mb-5">Ensure your account remains secure.</p>
 
         {success ? (
           <div className="p-4 rounded-xl bg-[rgba(34,197,94,0.06)] border border-[rgba(34,197,94,0.15)] text-[#22c55e] text-xs font-semibold text-center py-6 animate-fade-in">
@@ -74,7 +74,7 @@ export default function ChangePasswordModal({ onClose }) {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
                 Current Password
               </label>
               <input
@@ -89,7 +89,7 @@ export default function ChangePasswordModal({ onClose }) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
                 New Password
               </label>
               <input
@@ -104,7 +104,7 @@ export default function ChangePasswordModal({ onClose }) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
                 Confirm New Password
               </label>
               <input
@@ -130,7 +130,7 @@ export default function ChangePasswordModal({ onClose }) {
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#161622] hover:bg-[#202030] text-[#a0a0b8] hover:text-white transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#161622] hover:bg-[#202030] text-[var(--text-secondary)] hover:text-white transition-all cursor-pointer"
               >
                 Cancel
               </button>

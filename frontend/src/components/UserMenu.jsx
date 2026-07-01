@@ -23,7 +23,7 @@ export default function UserMenu({ onChangePasswordClick, onManageUsersClick }) 
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(15,15,22,0.6)] text-[#a0a0b8] hover:text-white hover:border-[rgba(251,78,11,0.3)] transition-all cursor-pointer text-[11px]"
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(15,15,22,0.6)] text-[var(--text-secondary)] hover:text-white hover:border-[rgba(251,78,11,0.3)] transition-all cursor-pointer text-[11px]"
       >
         <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-br from-[#fb4e0b] to-[#ff814d] flex items-center justify-center text-white font-bold text-[9px]">
           {user.username.charAt(0).toUpperCase()}
@@ -34,7 +34,7 @@ export default function UserMenu({ onChangePasswordClick, onManageUsersClick }) 
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-52 rounded-xl bg-[#0f0f16] border border-[rgba(255,255,255,0.08)] shadow-2xl py-1.5 z-50 animate-fade-in text-sm">
-          <div className="px-4 py-2 border-bottom border-[rgba(255,255,255,0.06)] text-xs text-[#666677]">
+          <div className="px-4 py-2 border-bottom border-[rgba(255,255,255,0.06)] text-xs text-[var(--text-muted)]">
             Signed in as <strong className="text-white block mt-0.5 truncate">{user.username}</strong>
           </div>
 
@@ -43,7 +43,7 @@ export default function UserMenu({ onChangePasswordClick, onManageUsersClick }) 
               setIsOpen(false);
               onChangePasswordClick();
             }}
-            className="w-full flex items-center gap-2.5 px-4 py-2 text-left text-[#a0a0b8] hover:text-white hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-4 py-2 text-left text-[var(--text-secondary)] hover:text-white hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer"
           >
             <KeyRound size={14} />
             <span>Change Password</span>
@@ -55,7 +55,7 @@ export default function UserMenu({ onChangePasswordClick, onManageUsersClick }) 
                 setIsOpen(false);
                 onManageUsersClick();
               }}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-left text-[#a0a0b8] hover:text-white hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer border-t border-[rgba(255,255,255,0.04)]"
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-left text-[var(--text-secondary)] hover:text-white hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer border-t border-[rgba(255,255,255,0.04)]"
             >
               <ShieldAlert size={14} className="text-[#fb4e0b]" />
               <span className="font-semibold text-white">Manage Users</span>

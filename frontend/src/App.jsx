@@ -170,7 +170,7 @@ function App() {
     return (
       <div className="min-h-screen bg-[#050508] flex flex-col items-center justify-center gap-3">
         <Loader2 size={32} className="animate-spin text-[#fb4e0b]" />
-        <span className="text-xs text-[#a0a0b8] font-medium uppercase tracking-wider">Securing Workspace...</span>
+        <span className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider">Securing Workspace...</span>
       </div>
     );
   }

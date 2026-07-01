@@ -64,10 +64,10 @@ export default function UploadZone({ onParse, onAnalyze, isLoading, llmAvailable
               <h4 className="text-sm font-bold text-white leading-tight">
                 Execution Blocked (High Risk Script)
               </h4>
-              <p className="text-xs text-[#a0a0b8] mt-1 leading-relaxed">
+              <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
                 This script contains operations flagged as High Risk under your organization's governance guidelines. Execution is disabled until the following items are resolved:
               </p>
-              <ul className="list-disc pl-4 mt-2.5 space-y-1.5 text-xs text-[#a0a0b8]">
+              <ul className="list-disc pl-4 mt-2.5 space-y-1.5 text-xs text-[var(--text-secondary)]">
                 {parseResult.risk.reasons.map((r, idx) => (
                   <li key={idx} className="marker:text-[#ef4444]">{r}</li>
                 ))}
@@ -77,7 +77,7 @@ export default function UploadZone({ onParse, onAnalyze, isLoading, llmAvailable
                   useAnalysisStore.setState({ parseResult: null });
                   handleClear();
                 }}
-                className="mt-4 px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(15,15,22,0.4)] text-xs font-semibold text-[#a0a0b8] hover:text-white hover:border-[#ef4444]/40 transition-all cursor-pointer"
+                className="mt-4 px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(15,15,22,0.4)] text-xs font-semibold text-[var(--text-secondary)] hover:text-white hover:border-[#ef4444]/40 transition-all cursor-pointer"
               >
                 Reset & Clear Block
               </button>

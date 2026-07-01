@@ -35,8 +35,8 @@
   --border: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(251, 78, 11, 0.3); /* Orange hover border */
   --text-primary: #ffffff;
-  --text-secondary: #a0a0b8;
-  --text-muted: #666677;
+  --text-secondary: #cbd5e1; /* Increased contrast (slate-300) from #a0a0b8 */
+  --text-muted: #94a3b8; /* Increased contrast (slate-400) from #666677 */
   --shadow-glow: 0 0 50px rgba(251, 78, 11, 0.15); /* More vibrant glow */
   --radius: 16px;
   --radius-sm: 8px;
@@ -52,8 +52,8 @@
   --border: rgba(0, 0, 0, 0.06);
   --border-hover: rgba(251, 78, 11, 0.4); /* Orange hover border */
   --text-primary: #050508;
-  --text-secondary: #495057;
-  --text-muted: #868e96;
+  --text-secondary: #343a40; /* Increased contrast (dark charcoal) from #495057 */
+  --text-muted: #5a626a; /* Increased contrast (darker grey) from #868e96 */
   --shadow-glow: 0 0 40px rgba(251, 78, 11, 0.12);
 }
 

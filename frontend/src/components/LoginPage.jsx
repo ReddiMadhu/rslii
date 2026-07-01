@@ -97,7 +97,7 @@ export default function LoginPage() {
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[#fb4e0b] via-[#ff6b2e] to-[#ff985a] bg-clip-text text-transparent">
             ETLPulse.AI
           </h1>
-          <p className="text-sm mt-2 text-[#a0a0b8]">
+          <p className="text-sm mt-2 text-[var(--text-secondary)]">
             {isRegistering ? "Create your developer account" : "Sign in to secure visual lineage validation"}
           </p>
         </div>
@@ -110,9 +110,9 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Username */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-2">Username</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Username</label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[#666677]">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[var(--text-muted)]">
                   <User size={16} />
                 </span>
                 <input
@@ -122,7 +122,7 @@ export default function LoginPage() {
                   onChange={handleChange}
                   placeholder="e.g. john.doe"
                   disabled={isLoading}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder-[#666677] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
                 />
               </div>
             </div>
@@ -130,9 +130,9 @@ export default function LoginPage() {
             {/* Email (Registration only) */}
             {isRegistering && (
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-2">Email Address</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Email Address</label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[#666677]">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[var(--text-muted)]">
                     <Mail size={16} />
                   </span>
                   <input
@@ -142,7 +142,7 @@ export default function LoginPage() {
                     onChange={handleChange}
                     placeholder="e.g. john@acme.com"
                     disabled={isLoading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder-[#666677] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
                   />
                 </div>
               </div>
@@ -150,9 +150,9 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-2">Password</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Password</label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[#666677]">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[var(--text-muted)]">
                   <KeyRound size={16} />
                 </span>
                 <input
@@ -162,7 +162,7 @@ export default function LoginPage() {
                   onChange={handleChange}
                   placeholder="••••••••"
                   disabled={isLoading}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder-[#666677] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
                 />
               </div>
             </div>
@@ -170,9 +170,9 @@ export default function LoginPage() {
             {/* Confirm Password (Registration only) */}
             {isRegistering && (
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-2">Confirm Password</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Confirm Password</label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[#666677]">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[var(--text-muted)]">
                     <KeyRound size={16} />
                   </span>
                   <input
@@ -182,7 +182,7 @@ export default function LoginPage() {
                     onChange={handleChange}
                     placeholder="••••••••"
                     disabled={isLoading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder-[#666677] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
                   />
                 </div>
               </div>
@@ -191,7 +191,7 @@ export default function LoginPage() {
             {/* Invite Code (Registration only) */}
             {isRegistering && (
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#666677] mb-2">Invite Code</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Invite Code</label>
                 <input
                   type="text"
                   name="inviteCode"
@@ -199,7 +199,7 @@ export default function LoginPage() {
                   onChange={handleChange}
                   placeholder="e.g. ACME2026"
                   disabled={isLoading}
-                  className="w-full px-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder-[#666677] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
+                  className="w-full px-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
                 />
               </div>
             )}
@@ -231,7 +231,7 @@ export default function LoginPage() {
 
           {/* Mode Switcher */}
           <div className="mt-6 text-center text-xs">
-            <span className="text-[#666677]">
+            <span className="text-[var(--text-muted)]">
               {isRegistering ? "Already have an account? " : "Don't have an account? "}
             </span>
             <button

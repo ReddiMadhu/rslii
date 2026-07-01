@@ -38,7 +38,7 @@ export default function RiskBadge() {
       </div>
 
       {showTooltip && (
-        <div className="absolute right-0 mt-2 w-64 p-3.5 rounded-xl bg-[#0f0f16] border border-[rgba(255,255,255,0.08)] shadow-2xl z-50 text-xs text-[#a0a0b8] animate-fade-in leading-relaxed">
+        <div className="absolute right-0 mt-2 w-64 p-3.5 rounded-xl bg-[#0f0f16] border border-[rgba(255,255,255,0.08)] shadow-2xl z-50 text-xs text-[var(--text-secondary)] animate-fade-in leading-relaxed">
           <div className="font-bold text-white mb-1.5 flex items-center gap-1">
             <HelpCircle size={12} className="text-[#fb4e0b]" />
             Risk Classification Details
