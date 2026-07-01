@@ -432,7 +432,7 @@ export default function ColumnLineageTab({ result }) {
     const rf = flowRef.current;
     if (!rf) return;
     rf.fitView({
-      padding: 0.18,
+      padding: 0.09,
       duration: 200,
       minZoom: 0.86,
       maxZoom: 1.26,

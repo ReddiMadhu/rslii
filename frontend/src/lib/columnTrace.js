@@ -33,16 +33,16 @@ const STATE_LABELS = {
 };
 
 const STATE_COLORS = {
-  introduced: "#3b82f6",
-  passthrough: "var(--text-muted)",
-  derived: "#fb4e0b",
-  renamed: "#3b82f6",
-  aggregated: "#a855f7",
-  agg_dropped: "#a855f7",
-  joined: "#f97316",
-  dropped: "#ef4444",
-  type_changed: "#eab308",
-  written: "#22c55e",
+  introduced: "#60a5fa",     // Bright blue
+  passthrough: "var(--text-secondary)", // Bright slate
+  derived: "#ff7a45",        // Bright orange-coral
+  renamed: "#60a5fa",        // Bright blue
+  aggregated: "#c084fc",     // Bright purple
+  agg_dropped: "#c084fc",    // Bright purple
+  joined: "#ff9f43",         // Bright orange
+  dropped: "#f87171",        // Bright red
+  type_changed: "#facc15",   // Bright yellow
+  written: "#4ade80",        // Bright green
 };
 
 export function getStateLabel(state) {
@@ -50,20 +50,20 @@ export function getStateLabel(state) {
 }
 
 export function getStateColor(state) {
-  return STATE_COLORS[state] || "var(--text-muted)";
+  return STATE_COLORS[state] || "var(--text-secondary)";
 }
 
 // ── Edge type styling ────────────────────────────────────────────
 export const EDGE_STYLES = {
-  passthrough: { stroke: "var(--text-muted)", strokeWidth: 1, strokeDasharray: "6 3" },
-  derived: { stroke: "#fb4e0b", strokeWidth: 2.5 },
-  renamed: { stroke: "#3b82f6", strokeWidth: 1.5 },
-  aggregated: { stroke: "#a855f7", strokeWidth: 1.5, strokeDasharray: "3 3" },
-  agg_dropped: { stroke: "#a855f7", strokeWidth: 1, strokeDasharray: "6 3" },
-  joined: { stroke: "#f97316", strokeWidth: 1.5 },
-  dropped: { stroke: "#ef4444", strokeWidth: 1, strokeDasharray: "6 3" },
-  type_changed: { stroke: "#eab308", strokeWidth: 1.5 },
-  introduced: { stroke: "#3b82f6", strokeWidth: 1.5 },
+  passthrough: { stroke: "var(--text-secondary)", strokeWidth: 1.2, strokeDasharray: "6 3" },
+  derived: { stroke: "#ff7a45", strokeWidth: 2.5 },
+  renamed: { stroke: "#60a5fa", strokeWidth: 1.5 },
+  aggregated: { stroke: "#c084fc", strokeWidth: 1.5, strokeDasharray: "3 3" },
+  agg_dropped: { stroke: "#c084fc", strokeWidth: 1, strokeDasharray: "6 3" },
+  joined: { stroke: "#ff9f43", strokeWidth: 1.5 },
+  dropped: { stroke: "#f87171", strokeWidth: 1, strokeDasharray: "6 3" },
+  type_changed: { stroke: "#facc15", strokeWidth: 1.5 },
+  introduced: { stroke: "#60a5fa", strokeWidth: 1.5 },
 };
 
 // ── Build adjacency maps ─────────────────────────────────────────

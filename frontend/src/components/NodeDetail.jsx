@@ -105,7 +105,7 @@ export default function NodeDetail({ result }) {
 
       {/* ── Metrics (current-state) ── */}
       <AccordionSection title="Metrics" icon={BarChart2} defaultOpen hasData>
-        <div className="text-[11px] space-y-1" style={{ color: "var(--text-secondary)" }}>
+        <div className="text-xs space-y-1" style={{ color: "var(--text-secondary)" }}>
           <div className="flex items-center gap-2">
             <span>
               Outgoing Rows:{" "}
@@ -115,7 +115,7 @@ export default function NodeDetail({ result }) {
             </span>
             {rt.rows_in != null && rt.rows_out != null && rt.rows_in !== rt.rows_out && (
               <span
-                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
                 style={{
                   background: rt.rows_out < rt.rows_in ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
                   color: rt.rows_out < rt.rows_in ? "#ef4444" : "#22c55e",
@@ -165,7 +165,7 @@ export default function NodeDetail({ result }) {
         <div className="flex gap-2 mb-2">
           <button
             type="button"
-            className="text-[10px] px-2 py-1 rounded-lg"
+            className="text-xs px-2 py-1 rounded-lg"
             style={{
               background: sampleMode === "output" ? "var(--primary)" : "var(--bg-secondary)",
               color: sampleMode === "output" ? "white" : "var(--text-muted)",
@@ -176,7 +176,7 @@ export default function NodeDetail({ result }) {
           </button>
           <button
             type="button"
-            className="text-[10px] px-2 py-1 rounded-lg"
+            className="text-xs px-2 py-1 rounded-lg"
             style={{
               background: sampleMode === "input" ? "var(--primary)" : "var(--bg-secondary)",
               color: sampleMode === "input" ? "white" : "var(--text-muted)",
@@ -218,7 +218,7 @@ function ColumnChangeDetail({ rt }) {
 
   if (!hasAnything) {
     return (
-      <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+      <div className="text-xs" style={{ color: "var(--text-muted)" }}>
         No column changes detected
       </div>
     );
@@ -237,11 +237,11 @@ function ColumnChangeDetail({ rt }) {
                 className="w-2 h-2 rounded-full inline-block"
                 style={{ background: cc.color }}
               />
-              <span className="text-[10px] font-semibold" style={{ color: cc.color }}>
+              <span className="text-xs font-semibold" style={{ color: cc.color }}>
                 {label}
               </span>
               <span
-                className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                className="text-[11px] px-1.5 py-0.5 rounded-full font-medium"
                 style={{ background: cc.bg, color: cc.color }}
               >
                 {count}
@@ -252,12 +252,12 @@ function ColumnChangeDetail({ rt }) {
                 items.map((col) => (
                   <span
                     key={col}
-                    className="text-[10px] px-2 py-0.5 rounded-lg font-medium inline-flex items-center gap-1"
+                    className="text-xs px-2 py-0.5 rounded-lg font-medium inline-flex items-center gap-1"
                     style={{ background: cc.bg, color: cc.color, border: `1px solid ${cc.color}30` }}
                   >
                     {col}
                     {key === "derived" && dtypesAfter[col] && (
-                      <span style={{ opacity: 0.6, fontSize: "9px" }}>{dtypesAfter[col]}</span>
+                      <span style={{ opacity: 0.6, fontSize: "11px" }}>{dtypesAfter[col]}</span>
                     )}
                   </span>
                 ))}
@@ -265,7 +265,7 @@ function ColumnChangeDetail({ rt }) {
                 Object.entries(items).map(([old, nw]) => (
                   <span
                     key={old}
-                    className="text-[10px] px-2 py-0.5 rounded-lg font-medium"
+                    className="text-xs px-2 py-0.5 rounded-lg font-medium"
                     style={{ background: cc.bg, color: cc.color, border: `1px solid ${cc.color}30` }}
                   >
                     {old} → {nw}
@@ -275,7 +275,7 @@ function ColumnChangeDetail({ rt }) {
                 Object.entries(items).map(([col, d]) => (
                   <span
                     key={col}
-                    className="text-[10px] px-2 py-0.5 rounded-lg font-medium"
+                    className="text-xs px-2 py-0.5 rounded-lg font-medium"
                     style={{ background: cc.bg, color: cc.color, border: `1px solid ${cc.color}30` }}
                   >
                     {col}{" "}

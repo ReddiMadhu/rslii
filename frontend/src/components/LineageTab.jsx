@@ -35,11 +35,11 @@ const iconMap = {
 
 // ─── Column-change colour palette ───
 export const COLUMN_COLORS = {
-  derived:     { bg: "rgba(34,197,94,0.12)",  color: "#22c55e", label: "Derived" },
-  joined:      { bg: "rgba(59,130,246,0.12)", color: "#3b82f6", label: "Joined" },
-  removed:     { bg: "rgba(239,68,68,0.12)",  color: "#ef4444", label: "Removed" },
-  renamed:     { bg: "rgba(249,115,22,0.12)", color: "#f97316", label: "Renamed" },
-  transformed: { bg: "rgba(234,179,8,0.15)",  color: "#eab308", label: "Transformed" },
+  derived:     { bg: "rgba(74,222,128,0.12)",  color: "#4ade80", label: "Derived" }, // Light green
+  joined:      { bg: "rgba(96,165,250,0.12)", color: "#60a5fa", label: "Joined" },  // Light blue
+  removed:     { bg: "rgba(248,113,113,0.12)",  color: "#f87171", label: "Removed" }, // Light red
+  renamed:     { bg: "rgba(251,146,60,0.12)", color: "#fb923c", label: "Renamed" }, // Light orange
+  transformed: { bg: "rgba(250,204,21,0.12)",  color: "#facc15", label: "Transformed" }, // Light yellow
 };
 
 // ─── Column Change Badges (shared between node expansion & detail panel) ───
@@ -62,27 +62,27 @@ function ColumnChangeBadges({ rt, color }) {
 
   return (
     <div className="space-y-1.5">
-      <div className="text-[10px] font-semibold" style={{ color }}>Column Level Changes</div>
+      <div className="text-xs font-semibold" style={{ color }}>Column Level Changes</div>
       {sections.map(({ key, items }) => {
         const c = COLUMN_COLORS[key];
         return (
           <div key={key}>
-            <div className="text-[9px] font-semibold mb-0.5" style={{ color: c.color }}>{c.label}</div>
+            <div className="text-[11px] font-semibold mb-0.5" style={{ color: c.color }}>{c.label}</div>
             <div className="flex flex-wrap gap-1">
               {key === "renamed"
                 ? Object.entries(items).map(([old, nw]) => (
-                    <span key={old} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
+                    <span key={old} className="text-[11px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
                       {old} → {nw}
                     </span>
                   ))
                 : key === "transformed"
                 ? Object.entries(items).map(([col, d]) => (
-                    <span key={col} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
+                    <span key={col} className="text-[11px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
                       {col} <span style={{ opacity: 0.7 }}>({d.from} → {d.to})</span>
                     </span>
                   ))
                 : items.map((col) => (
-                    <span key={col} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
+                    <span key={col} className="text-[11px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: c.bg, color: c.color }}>
                       {col}
                     </span>
                   ))}
@@ -122,7 +122,7 @@ function ETLNodeComponent({ data }) {
       <div
         className="nodrag nopan rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-1 group"
         style={{
-          background: "var(--bg-card)",
+          background: "#000000",
           border: `2px solid ${borderColor}`,
           boxShadow: isExpanded ? `0 0 20px ${data.color}20` : "0 4px 12px rgba(0,0,0,0.1)",
           maxWidth: 280,
@@ -153,8 +153,8 @@ function ETLNodeComponent({ data }) {
               {data.label}
             </div>
             <div
-              className="text-[10px] mt-0.5"
-              style={{ color: "var(--text-muted)" }}
+              className="text-xs mt-0.5"
+              style={{ color: "#ffffff" }}
             >
               Line {data.lineNumber}
             </div>
@@ -170,9 +170,9 @@ function ETLNodeComponent({ data }) {
               </div>
             )}
             {isExpanded ? (
-              <ChevronUp size={14} style={{ color: "var(--text-muted)" }} />
+              <ChevronUp size={14} style={{ color: "#ffffff" }} />
             ) : (
-              <ChevronDown size={14} style={{ color: "var(--text-muted)" }} />
+              <ChevronDown size={14} style={{ color: "#ffffff" }} />
             )}
           </div>
         </div>
@@ -186,12 +186,12 @@ function ETLNodeComponent({ data }) {
             {/* Description */}
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="text-[10px] font-semibold" style={{ color: data.color }}>
+                <div className="text-xs font-semibold" style={{ color: data.color }}>
                   Description
                 </div>
                 {data.descriptionSource === "llm" && (
                   <span
-                    className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                    className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
                     style={{
                       background: "rgba(168, 85, 247, 0.15)",
                       color: "#a855f7",
@@ -201,17 +201,17 @@ function ETLNodeComponent({ data }) {
                   </span>
                 )}
               </div>
-              <div className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+              <div className="text-xs leading-relaxed" style={{ color: "#ffffff" }}>
                 {data.description}
               </div>
             </div>
 
             {/* Source Code */}
             <div>
-              <div className="text-[10px] font-semibold mb-1" style={{ color: data.color }}>
+              <div className="text-xs font-semibold mb-1" style={{ color: data.color }}>
                 Source Code
               </div>
-              <div className="rounded-lg overflow-hidden text-[11px]" style={{ border: "1px solid var(--border)" }}>
+              <div className="rounded-lg overflow-hidden text-xs" style={{ border: "1px solid var(--border)" }}>
                 <SyntaxHighlighter
                   language="python"
                   style={oneDark}
@@ -228,12 +228,12 @@ function ETLNodeComponent({ data }) {
 
             {/* Runtime Metrics — current-state format */}
             {rt && typeof rt.rows_out === "number" && (
-              <div className="text-[10px] space-y-1" style={{ color: "var(--text-secondary)" }}>
+              <div className="text-xs space-y-1" style={{ color: "#ffffff" }}>
                 <div className="flex items-center gap-2">
                   <span>Outgoing Rows: <strong style={{ color: "var(--text-primary)" }}>{rt.rows_out.toLocaleString()}</strong></span>
                   {rt.rows_in != null && rt.rows_in !== rt.rows_out && (
                     <span
-                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                      className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
                       style={{
                         background: rt.rows_out < rt.rows_in ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
                         color: rt.rows_out < rt.rows_in ? "#ef4444" : "#22c55e",
@@ -420,9 +420,9 @@ export default function LineageTab({ result }) {
           animated: false,
           label: e.variable || "",
           labelStyle: {
-            fill: "var(--text-muted)",
-            fontSize: 10,
-            fontWeight: 500,
+            fill: "var(--text-secondary)",
+            fontSize: 12,
+            fontWeight: 600,
           },
           labelBgStyle: {
             fill: "var(--bg-card)",
@@ -461,7 +461,7 @@ export default function LineageTab({ result }) {
     const rf = flowRef.current;
     if (!rf) return;
     rf.fitView({
-      padding: 0.18,
+      padding: 0.09,
       duration: 200,
       minZoom: 0.86,
       maxZoom: 1.26,

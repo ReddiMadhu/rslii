@@ -335,7 +335,15 @@ function App() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col px-6 py-6">
+      <main
+        className="flex-1 flex flex-col"
+        style={{
+          paddingTop: (activeTab === "lineage" || activeTab === "column-lineage") && !showAdminConsole && !showAuditTrail ? "12px" : "24px",
+          paddingLeft: (activeTab === "lineage" || activeTab === "column-lineage") && !showAdminConsole && !showAuditTrail ? "12px" : "24px",
+          paddingRight: (activeTab === "lineage" || activeTab === "column-lineage") && !showAdminConsole && !showAuditTrail ? "12px" : "24px",
+          paddingBottom: "24px",
+        }}
+      >
         {error && (
           <div
             className="w-full max-w-7xl mx-auto mb-6 px-4 py-3 rounded-xl text-sm font-medium animate-fade-in"
