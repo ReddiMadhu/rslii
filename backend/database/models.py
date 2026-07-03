@@ -25,6 +25,8 @@ class User(Base):
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
     last_login = Column(DateTime, nullable=True)
+    # Stores last N password hashes (JSON array) to prevent reuse
+    password_history = Column(JSON, nullable=True, default=list)
 
     def to_dict(self, include_email: bool = False):
         """Safe serialization — never includes password_hash."""

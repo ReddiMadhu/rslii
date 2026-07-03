@@ -20,7 +20,7 @@ except ImportError:
 from fastapi import FastAPI, HTTPException, Request, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -31,6 +31,16 @@ from database.models import User, AuditLog
 
 blob_store = BlobAuditStore(os.environ.get("AZURE_STORAGE_CONNECTION_STRING"))
 from auth.middleware import get_current_user, require_admin, CurrentUser
+from auth.rate_limiter import setup_rate_limiting, limiter, AUTH_RATE_LIMIT, UPLOAD_RATE_LIMIT, ADMIN_RATE_LIMIT
+from auth.security_headers import setup_security_headers
+from auth.ssl_config import create_ssl_context
+from auth.input_validator import (
+    sanitize_string, strip_control_chars, validate_code_input,
+    validate_column_name, validate_direction, validate_export_format,
+    validate_filename, validate_pagination, validate_query_param,
+    validate_risk_level, validate_session_id, validate_status,
+    validate_user_id, MAX_CODE_LENGTH,
+)
 from auth.service import (
     register_user,
     authenticate_user,
@@ -38,6 +48,7 @@ from auth.service import (
     reset_password,
     set_user_active,
     get_all_users,
+    validate_password_strength,
     COOKIE_NAME,
     COOKIE_MAX_AGE,
     COOKIE_SECURE,
@@ -49,6 +60,12 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# --- Rate Limiting & Request Size Enforcement ---
+setup_rate_limiting(app)
+
+# --- Security Headers (HSTS, CSP, X-Frame-Options, etc.) ---
+setup_security_headers(app)
+
 @app.on_event("startup")
 def on_startup():
     init_db()
@@ -56,20 +73,38 @@ def on_startup():
 # --- Auth Request/Response Models ---
 
 class RegisterRequest(BaseModel):
-    username: str
-    email: str
-    password: str
-    invite_code: str
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(..., max_length=255)
+    password: str = Field(..., min_length=8, max_length=128)
+    invite_code: str = Field(..., min_length=1, max_length=100)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username_format(cls, v):
+        import re
+        v = v.strip()
+        if not re.match(r"^[a-zA-Z0-9._-]{3,50}$", v):
+            raise ValueError("Username may only contain letters, numbers, dots, underscores, and hyphens")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_format(cls, v):
+        import re
+        v = v.strip().lower()
+        if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", v):
+            raise ValueError("Invalid email address format")
+        return v
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
+    current_password: str = Field(..., min_length=1, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 # session_id -> temp workspace (contains uploads/ and output/)
@@ -134,22 +169,62 @@ ETL_INDICATORS = {
 # --- Request/Response Models ---
 
 class AnalyzeRequest(BaseModel):
-    code: str
-    filename: Optional[str] = None
+    code: str = Field(..., min_length=1, max_length=MAX_CODE_LENGTH)
+    filename: Optional[str] = Field(None, max_length=255)
     enable_llm: bool = False
+
+    @field_validator("code")
+    @classmethod
+    def sanitize_code(cls, v):
+        return validate_code_input(v)
+
+    @field_validator("filename")
+    @classmethod
+    def sanitize_filename(cls, v):
+        return validate_filename(v) if v else None
 
 
 class ParseRequest(BaseModel):
-    code: str
-    filename: Optional[str] = None
+    code: str = Field(..., min_length=1, max_length=MAX_CODE_LENGTH)
+    filename: Optional[str] = Field(None, max_length=255)
+
+    @field_validator("code")
+    @classmethod
+    def sanitize_code(cls, v):
+        return validate_code_input(v)
+
+    @field_validator("filename")
+    @classmethod
+    def sanitize_filename(cls, v):
+        return validate_filename(v) if v else None
 
 
 class ColumnJourneySummaryRequest(BaseModel):
-    column: str
-    direction: str  # "upstream" | "downstream"
-    trace_nodes: list[dict]
-    source_code: str
-    session_id: Optional[str] = None
+    column: str = Field(..., min_length=1, max_length=255)
+    direction: str = Field(..., min_length=1, max_length=20)
+    trace_nodes: list[dict] = Field(..., max_length=500)
+    source_code: str = Field(..., min_length=1, max_length=MAX_CODE_LENGTH)
+    session_id: Optional[str] = Field(None, max_length=40)
+
+    @field_validator("column")
+    @classmethod
+    def sanitize_column(cls, v):
+        return validate_column_name(v)
+
+    @field_validator("direction")
+    @classmethod
+    def validate_dir(cls, v):
+        return validate_direction(v)
+
+    @field_validator("source_code")
+    @classmethod
+    def sanitize_code(cls, v):
+        return validate_code_input(v)
+
+    @field_validator("session_id")
+    @classmethod
+    def sanitize_session_id(cls, v):
+        return validate_session_id(v) if v else None
 
 
 class HealthResponse(BaseModel):
@@ -241,7 +316,8 @@ def _sse_bytes(event: str, payload: dict) -> bytes:
 # --- Routes ---
 
 @app.post("/api/auth/register")
-async def register(req: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit(AUTH_RATE_LIMIT)
+async def register(request: Request, req: RegisterRequest, db: Session = Depends(get_db)):
     try:
         user = register_user(
             db,
@@ -262,7 +338,8 @@ async def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/login")
-async def login(req: LoginRequest, response: Response, db: Session = Depends(get_db)):
+@limiter.limit(AUTH_RATE_LIMIT)
+async def login(request: Request, req: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = authenticate_user(db, username=req.username, password=req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -292,6 +369,28 @@ async def logout(response: Response):
     return {"message": "Logged out successfully"}
 
 
+@app.post("/api/auth/validate-password")
+async def validate_password_api(request: Request):
+    """Public endpoint — validates a password against the policy without storing it.
+
+    Returns the list of unmet requirements so the frontend can show real-time feedback.
+    """
+    body = await request.json()
+    password = body.get("password", "")
+    errors = validate_password_strength(password)
+    return {
+        "valid": len(errors) == 0,
+        "errors": errors,
+        "policy": {
+            "min_length": 8,
+            "require_uppercase": True,
+            "require_lowercase": True,
+            "require_digit": True,
+            "require_special": True,
+        },
+    }
+
+
 @app.get("/api/auth/me")
 async def get_me(current_user: CurrentUser = Depends(get_current_user)):
     return {
@@ -302,7 +401,9 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)):
 
 
 @app.post("/api/auth/change-password")
+@limiter.limit(AUTH_RATE_LIMIT)
 async def change_user_password(
+    request: Request,
     req: ChangePasswordRequest,
     current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -328,7 +429,9 @@ async def get_users(
 
 
 @app.post("/api/admin/users/{user_id}/reset-password")
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def reset_user_password(
+    request: Request,
     user_id: int,
     current_user: CurrentUser = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -378,6 +481,15 @@ async def get_audit_trail(
     current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # --- Input validation ---
+    page, page_size = validate_pagination(page, page_size)
+    try:
+        username = validate_query_param(username, "username")
+        risk_level = validate_risk_level(risk_level)
+        status = validate_status(status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     query = db.query(AuditLog)
     
     if date_from:
@@ -385,13 +497,13 @@ async def get_audit_trail(
             df = datetime.fromisoformat(date_from)
             query = query.filter(AuditLog.timestamp >= df)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid date_from format. Use ISO 8601.")
     if date_to:
         try:
             dt = datetime.fromisoformat(date_to)
             query = query.filter(AuditLog.timestamp <= dt)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid date_to format. Use ISO 8601.")
             
     if username:
         query = query.filter(AuditLog.username.ilike(f"%{username}%"))
@@ -422,6 +534,15 @@ async def export_audit_trail(
     current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # --- Input validation ---
+    try:
+        format = validate_export_format(format)
+        username = validate_query_param(username, "username")
+        risk_level = validate_risk_level(risk_level)
+        status = validate_status(status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     query = db.query(AuditLog)
     
     if date_from:
@@ -429,13 +550,13 @@ async def export_audit_trail(
             df = datetime.fromisoformat(date_from)
             query = query.filter(AuditLog.timestamp >= df)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid date_from format. Use ISO 8601.")
     if date_to:
         try:
             dt = datetime.fromisoformat(date_to)
             query = query.filter(AuditLog.timestamp <= dt)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid date_to format. Use ISO 8601.")
             
     if username:
         query = query.filter(AuditLog.username.ilike(f"%{username}%"))
@@ -634,10 +755,11 @@ async def parse_script(
 
 
 @app.post("/api/analyze")
-async def analyze(request: AnalyzeRequest, current_user: CurrentUser = Depends(get_current_user)):
+@limiter.limit(UPLOAD_RATE_LIMIT)
+async def analyze(request: Request, req: AnalyzeRequest, current_user: CurrentUser = Depends(get_current_user)):
     """Full static analysis + optional LLM (v1). For v2 parse-only, use ``POST /api/parse``."""
     # Step 1: Validate
-    validation = validate_python_code(request.code)
+    validation = validate_python_code(req.code)
 
     if not validation.get("valid"):
         raise HTTPException(
@@ -652,18 +774,18 @@ async def analyze(request: AnalyzeRequest, current_user: CurrentUser = Depends(g
         from parser.ast_parser import ASTParser
         from parser.templates import apply_descriptions
 
-        parser = ASTParser(request.code)
+        parser = ASTParser(req.code)
         result = parser.parse()
 
         # Step 3: Apply template descriptions
         result["nodes"] = apply_descriptions(result["nodes"])
 
         # Step 4: Optional LLM enrichment
-        if request.enable_llm:
+        if req.enable_llm:
             try:
                 from llm.enricher import enrich_descriptions
                 enriched_nodes, llm_used = await enrich_descriptions(
-                    result["nodes"], request.code
+                    result["nodes"], req.code
                 )
                 result["nodes"] = enriched_nodes
                 result["llm_used"] = llm_used
@@ -682,18 +804,39 @@ async def analyze(request: AnalyzeRequest, current_user: CurrentUser = Depends(g
         raise HTTPException(status_code=500, detail=f"Parser error: {str(e)}")
 
 
+
 async def _parse_upload_form(form) -> tuple[str, str, dict, list[dict], bool]:
     """Shared multipart parsing for validate-sources and execute."""
     code = form.get("code")
     if not code or not isinstance(code, str):
         raise HTTPException(status_code=422, detail="Missing code")
-    filename = form.get("filename") or "pipeline.py"
+    
+    try:
+        code = validate_code_input(code)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    raw_filename = form.get("filename")
+    try:
+        filename = validate_filename(raw_filename)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
     enable_llm = str(form.get("enable_llm", "false")).lower() in ("1", "true", "yes")
     raw_map = form.get("file_mapping") or "{}"
     try:
         file_mapping = json.loads(raw_map) if isinstance(raw_map, str) else {}
     except json.JSONDecodeError:
         raise HTTPException(status_code=422, detail="file_mapping must be valid JSON")
+
+    # Validate file_mapping keys and values to prevent injection
+    for k, v in list(file_mapping.items()):
+        try:
+            # Ensure keys (source ID) and values (logical filename) are safe strings
+            validate_column_name(str(k))
+            file_mapping[k] = validate_filename(str(v))
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f"Invalid file_mapping: {str(e)}")
 
     validation = validate_python_code(code)
     if not validation.get("valid"):
@@ -723,6 +866,7 @@ async def _parse_upload_form(form) -> tuple[str, str, dict, list[dict], bool]:
             raise HTTPException(status_code=422, detail=msg)
 
     return code, filename, file_mapping, sources, enable_llm
+
 
 
 async def _save_uploads(form, sources: list, file_mapping: dict, uploads_dir: str) -> dict[str, str]:
@@ -770,6 +914,7 @@ async def _save_uploads(form, sources: list, file_mapping: dict, uploads_dir: st
 
 
 @app.post("/api/validate-sources")
+@limiter.limit(UPLOAD_RATE_LIMIT)
 async def validate_sources(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -815,6 +960,7 @@ async def validate_sources(
 
 
 @app.post("/api/execute")
+@limiter.limit(UPLOAD_RATE_LIMIT)
 async def execute_pipeline(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -1018,7 +1164,12 @@ async def download_output(
     current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    safe = os.path.basename(filename)
+    try:
+        session_id = validate_session_id(session_id)
+        safe = validate_filename(filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     root = _EXEC_SESSIONS.get(session_id)
     path = os.path.join(root, "output", safe) if root else ""
     
@@ -1107,4 +1258,16 @@ async def column_journey_summary(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+    ssl_ctx = create_ssl_context()
+    ssl_kwargs = {}
+    if ssl_ctx is not None:
+        ssl_kwargs["ssl"] = ssl_ctx
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("RSLI_PORT", "8000")),
+        reload=os.environ.get("RSLI_RELOAD", "true").lower() in ("1", "true", "yes"),
+        **ssl_kwargs,
+    )

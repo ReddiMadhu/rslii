@@ -22,5 +22,6 @@ alembic>=1.13.0
 azure-storage-blob>=12.19.0
 psycopg2-binary>=2.9.0
 psutil>=5.9.0
+slowapi>=0.1.9
 
 

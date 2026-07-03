@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useAuthStore from "../store/useAuthStore";
 import { KeyRound, Mail, User, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import PasswordStrengthIndicator, { validatePasswordClient } from "./PasswordStrengthIndicator";
 
 export default function LoginPage() {
   const { login, register, error: authError, isLoading } = useAuthStore();
@@ -25,9 +26,18 @@ export default function LoginPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
+    if (isRegistering) {
+      // Enforce strong password policy on registration
+      const pwCheck = validatePasswordClient(password);
+      if (!pwCheck.valid) {
+        setError(pwCheck.errors[0]);
+        return;
+      }
+    } else {
+      if (password.length < 1) {
+        setError("Password is required");
+        return;
+      }
     }
 
     if (isRegistering) {
@@ -165,6 +175,7 @@ export default function LoginPage() {
                   className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
                 />
               </div>
+              {isRegistering && <PasswordStrengthIndicator password={form.password} />}
             </div>
 
             {/* Confirm Password (Registration only) */}

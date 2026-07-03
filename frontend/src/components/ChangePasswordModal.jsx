@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useAuthStore from "../store/useAuthStore";
 import { X, KeyRound, Loader2, ShieldAlert } from "lucide-react";
+import PasswordStrengthIndicator, { validatePasswordClient } from "./PasswordStrengthIndicator";
 
 export default function ChangePasswordModal({ onClose }) {
   const { changePassword, isLoading } = useAuthStore();
@@ -23,10 +24,14 @@ export default function ChangePasswordModal({ onClose }) {
       setError("Current password is required");
       return;
     }
-    if (newPassword.length < 6) {
-      setError("New password must be at least 6 characters");
+
+    // Enforce strong password policy
+    const pwCheck = validatePasswordClient(newPassword);
+    if (!pwCheck.valid) {
+      setError(pwCheck.errors[0]);
       return;
     }
+
     if (newPassword !== confirmPassword) {
       setError("New passwords do not match");
       return;
@@ -98,9 +103,10 @@ export default function ChangePasswordModal({ onClose }) {
                 value={form.newPassword}
                 onChange={handleChange}
                 disabled={isLoading}
-                placeholder="At least 6 characters"
+                placeholder="Min 8 chars, mixed case, number & special"
                 className="w-full px-4 py-2 bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded-xl text-xs text-white focus:outline-none focus:border-[#fb4e0b] focus:ring-1 focus:ring-[#fb4e0b] transition-all"
               />
+              <PasswordStrengthIndicator password={form.newPassword} />
             </div>
 
             <div>
