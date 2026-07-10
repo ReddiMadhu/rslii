@@ -53,8 +53,7 @@ function LandingPage({ themeToggle }) {
           </p>
           <button 
             onClick={scrollToPlatforms}
-            className="group relative flex items-center gap-3 px-8 py-4 rounded-full font-bold text-white transition-all duration-300 hover:scale-105 overflow-hidden shadow-[0_0_40px_rgba(251,78,11,0.4)]"
-            style={{ background: "linear-gradient(135deg, var(--primary), var(--primary-dark))" }}
+            className="group relative flex items-center gap-3 px-8 py-4 rounded-full font-bold text-white transition-all duration-300 hover:scale-105 overflow-hidden shadow-[0_0_40px_rgba(251,78,11,0.4)] bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)]"
           >
             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
             Get Started

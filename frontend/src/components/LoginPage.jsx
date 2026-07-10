@@ -114,8 +114,7 @@ export default function LoginPage() {
 
         {/* Form Card */}
         <div 
-          className="glass glow rounded-2xl border border-[rgba(255,255,255,0.06)] p-8 relative"
-          style={{ background: "rgba(15, 15, 22, 0.7)", boxShadow: "0 0 50px rgba(251, 78, 11, 0.05)" }}
+          className="glass glow rounded-2xl border border-[rgba(255,255,255,0.06)] p-8 relative bg-[rgba(15,15,22,0.7)] shadow-[0_0_50px_rgba(251,78,11,0.05)]"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Username */}

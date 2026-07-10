@@ -1,7 +1,7 @@
 """Audit logger — records metadata audit trails in the database."""
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
 from sqlalchemy.orm import Session
 from database.models import AuditLog
 
@@ -45,17 +45,21 @@ async def log_llm_call(
     db: Session,
     session_id: Optional[str],
     username: str,
-    prompt: str,
-    response_content: str,
+    prompt: Any,
+    response_content: Any,
     model_name: str,
     tokens: int = 0,
 ) -> None:
     """Log an LLM call to the database and upload detail to Blob Storage if enabled."""
+    # Ensure prompt and response_content are stringified to prevent TypeErrors on list inputs
+    prompt_str = str(prompt) if not isinstance(prompt, str) else prompt
+    resp_str = str(response_content) if not isinstance(response_content, str) else response_content
+
     summary = {
         "model": model_name,
         "tokens": tokens,
-        "prompt_snippet": prompt[:200] + ("..." if len(prompt) > 200 else ""),
-        "response_snippet": response_content[:200] + ("..." if len(response_content) > 200 else ""),
+        "prompt_snippet": prompt_str[:200] + ("..." if len(prompt_str) > 200 else ""),
+        "response_snippet": resp_str[:200] + ("..." if len(resp_str) > 200 else ""),
     }
     
     # 1. Log event in DB

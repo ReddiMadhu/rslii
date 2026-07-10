@@ -109,7 +109,8 @@ Only include candidates with confidence > 0.3. Max 5 items."""
     try:
         import os
         resp = await llm.ainvoke(prompt)
-        text = resp.content if hasattr(resp, "content") else str(resp)
+        from llm.llm_factory import stringify_chat_content
+        text = stringify_chat_content(resp.content) if hasattr(resp, "content") else str(resp)
 
         # Metadata and token usage extraction for audit trail
         metadata = getattr(resp, "response_metadata", {})
