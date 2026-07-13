@@ -6,7 +6,7 @@ python-multipart
 pandas>=2.0
 numpy>=1.24
 openpyxl>=3.1
-pyarrow>=14
+pyarrow>=23.0.1
 
 # LLM Integration (optional — only needed if using AI Enhance)
 langchain-core
@@ -16,7 +16,7 @@ python-dotenv
 
 # Governance & Security
 bcrypt>=4.0.0
-PyJWT>=2.8.0
+PyJWT>=2.13.0
 SQLAlchemy>=2.0.0
 alembic>=1.13.0
 azure-storage-blob>=12.19.0
